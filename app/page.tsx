@@ -12,9 +12,11 @@ export default function Home() {
             <h1 className="text-lg font-medium tracking-tight">{site.name}</h1>
             <p className="text-muted">{site.role}</p>
           </div>
-          <p className="max-w-prose leading-relaxed text-foreground/80">
-            {site.bio}
-          </p>
+          <div className="max-w-prose space-y-4 leading-relaxed text-foreground/80">
+            {site.bio.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </div>
         </header>
         <ThemeToggle />
       </div>

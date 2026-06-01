@@ -1,8 +1,11 @@
 export const site = {
   name: "Pedro Mello",
   role: "Senior Product Designer",
-  /** Short intro shown on the home page. */
-  bio: "Senior Product Designer focused on Growth & Monetization. I combine UX/UI design and data analysis to build impactful, results-driven digital experiences — turning user behavior into business growth.",
+  /** Short intro shown on the home page, one entry per paragraph. */
+  bio: [
+    "Today, I work on the Growth team at Factorial. I design experiences that help businesses discover value, adopt products, and grow.",
+    "Previously, I worked on the Growth Design team at Jusbrasil.",
+  ],
   url: "https://pedromello.cc",
   email: "hello@pedromello.cc",
   links: {

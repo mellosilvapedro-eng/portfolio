@@ -10,16 +10,18 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
+const description = site.bio.join(" ");
+
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
   title: {
     default: `${site.name} — ${site.role}`,
     template: `%s — ${site.name}`,
   },
-  description: site.bio,
+  description,
   openGraph: {
     title: `${site.name} — ${site.role}`,
-    description: site.bio,
+    description,
     url: site.url,
     siteName: site.name,
     type: "website",
@@ -27,7 +29,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: `${site.name} — ${site.role}`,
-    description: site.bio,
+    description,
   },
 };
 
