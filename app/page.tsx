@@ -10,11 +10,17 @@ export default function Home() {
         <header className="animate-rise space-y-4">
           <div className="space-y-1">
             <h1 className="text-lg font-medium tracking-tight">{site.name}</h1>
-            <p className="text-muted">{site.role}</p>
+            <p className="text-muted">
+              {site.role}
+              <span className="px-1.5 text-border" aria-hidden="true">
+                ·
+              </span>
+              {site.location}
+            </p>
           </div>
           <div className="max-w-prose space-y-4 leading-relaxed text-foreground/80">
             {site.bio.map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
+              <p key={paragraph}>{withMentions(paragraph)}</p>
             ))}
           </div>
         </header>
@@ -39,6 +45,27 @@ export default function Home() {
         </span>
       </footer>
     </main>
+  );
+}
+
+function withMentions(text: string) {
+  const names = Object.keys(site.mentions);
+  if (names.length === 0) return text;
+  const pattern = new RegExp(`(${names.join("|")})`, "g");
+  return text.split(pattern).map((part, i) =>
+    site.mentions[part] ? (
+      <a
+        key={i}
+        href={site.mentions[part]}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-foreground underline decoration-border underline-offset-4 transition-colors duration-150 hover:decoration-foreground"
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    ),
   );
 }
 
