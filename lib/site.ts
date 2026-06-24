@@ -20,6 +20,12 @@ export const site = {
       url: "https://specnote.vercel.app/",
       year: "2026",
     },
+    {
+      name: "Paste",
+      description: "Drop-in UI components for LLMs",
+      url: "https://uipaste.vercel.app/",
+      year: "2026",
+    },
   ],
   url: "https://pedromello.cc",
   email: "hello@pedromello.cc",
