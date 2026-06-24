@@ -43,7 +43,7 @@ export default function Home() {
       </section>
 
       <footer
-        className="animate-rise mt-auto flex flex-wrap items-center gap-x-5 gap-y-2 pt-20 text-sm text-muted"
+        className="animate-rise mt-auto flex flex-wrap items-center gap-x-5 gap-y-2 pt-32 text-sm text-muted sm:pt-48"
         style={{ animationDelay: "200ms" }}
       >
         <FooterLink href={site.links.linkedin}>LinkedIn</FooterLink>

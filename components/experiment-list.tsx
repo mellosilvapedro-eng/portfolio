@@ -12,10 +12,10 @@ export function ExperimentList() {
             className="group flex items-baseline justify-between gap-6 rounded-lg px-3 py-3.5 transition-colors duration-150 hover:bg-hover focus-visible:bg-hover focus-visible:outline-none"
           >
             <span className="flex items-baseline gap-2 leading-snug">
-              <span className="text-foreground transition-transform duration-200 ease-out-strong group-hover:translate-x-0.5">
-                {experiment.name}
+              <span className="flex items-baseline gap-2 transition-transform duration-200 ease-out-strong group-hover:translate-x-0.5">
+                <span className="text-foreground">{experiment.name}</span>
+                <span className="text-muted">{experiment.description}</span>
               </span>
-              <span className="text-muted">{experiment.description}</span>
               <span
                 aria-hidden="true"
                 className="-translate-x-1 text-muted opacity-0 transition duration-200 ease-out-strong group-hover:translate-x-0 group-hover:opacity-100"
