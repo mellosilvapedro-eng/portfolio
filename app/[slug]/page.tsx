@@ -39,7 +39,7 @@ export default async function ProjectPage({
       >
         <span
           aria-hidden="true"
-          className="transition-transform duration-200 ease-[--ease-out-strong] group-hover:-translate-x-0.5"
+          className="transition-transform duration-200 ease-out-strong group-hover:-translate-x-0.5"
         >
           ←
         </span>
