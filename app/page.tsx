@@ -1,3 +1,4 @@
+import { ExperimentList } from "@/components/experiment-list";
 import { ProjectList } from "@/components/project-list";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { publishedProjects } from "@/lib/projects";
@@ -34,11 +35,19 @@ export default function Home() {
         <ProjectList projects={publishedProjects} />
       </section>
 
+      <section className="animate-rise mt-12" style={{ animationDelay: "120ms" }}>
+        <h2 className="mb-2 px-3 text-sm font-medium text-muted">
+          Experiments
+        </h2>
+        <ExperimentList />
+      </section>
+
       <footer
         className="animate-rise mt-auto flex flex-wrap items-center gap-x-5 gap-y-2 pt-20 text-sm text-muted"
-        style={{ animationDelay: "160ms" }}
+        style={{ animationDelay: "200ms" }}
       >
         <FooterLink href={site.links.linkedin}>LinkedIn</FooterLink>
+        <FooterLink href={site.links.github}>GitHub</FooterLink>
         <FooterLink href={`mailto:${site.email}`}>Email</FooterLink>
         <span className="ml-auto tabular">
           © {new Date().getFullYear()} {site.name}
