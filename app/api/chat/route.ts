@@ -1,7 +1,16 @@
 import { streamText } from "ai";
+import { propagateAttributes } from "@langfuse/tracing";
 import { buildSystemPrompt } from "@/lib/persona";
 import { site } from "@/lib/site";
-import { getOpenRouter, isAllowedOrigin, models, sanitize } from "@/lib/chat-util";
+import {
+  flushTelemetry,
+  getOpenRouter,
+  isAllowedOrigin,
+  models,
+  sanitize,
+  sessionIdOf,
+  telemetryEnabled,
+} from "@/lib/chat-util";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +42,7 @@ export async function POST(req: Request) {
     return new Response("Forbidden", { status: 403 });
   }
 
-  let body: { messages?: unknown };
+  let body: { messages?: unknown; sessionId?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -53,53 +62,78 @@ export async function POST(req: Request) {
   const openrouter = getOpenRouter();
   const encoder = new TextEncoder();
 
+  // Group this conversation's turns under one Langfuse session. No-op when
+  // telemetry is off; flush runs after the streamed response finishes.
+  const sessionId = sessionIdOf(body.sessionId);
+  flushTelemetry();
+
   const readable = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      let produced = false;
-      let lastErr: unknown = null;
+    start(controller) {
+      const run = async () => {
+        let produced = false;
+        let lastErr: unknown = null;
 
-      // Probe + failover: the first model to emit any text wins; if a model
-      // errors before producing output, fall through to the next one.
-      for (const model of models()) {
-        try {
-          const result = streamText({
-            model: openrouter(model),
-            system,
-            messages,
-            temperature: TEMPERATURE,
-            maxOutputTokens: MAX_TOKENS,
-            abortSignal: req.signal,
-          });
+        // Probe + failover: the first model to emit any text wins; if a model
+        // errors before producing output, fall through to the next one.
+        for (const model of models()) {
+          try {
+            const result = streamText({
+              model: openrouter(model),
+              system,
+              messages,
+              temperature: TEMPERATURE,
+              maxOutputTokens: MAX_TOKENS,
+              abortSignal: req.signal,
+              experimental_telemetry: telemetryEnabled
+                ? {
+                    isEnabled: true,
+                    functionId: "portfolio-chat",
+                    // Records which model actually answered — failovers show
+                    // up as their own (errored) generations in the trace.
+                    metadata: { model },
+                  }
+                : undefined,
+            });
 
-          for await (const delta of result.textStream) {
-            produced = true;
-            controller.enqueue(encoder.encode(delta));
-          }
+            for await (const delta of result.textStream) {
+              produced = true;
+              controller.enqueue(encoder.encode(delta));
+            }
 
-          if (produced) {
-            controller.close();
-            return;
+            if (produced) {
+              controller.close();
+              return;
+            }
+            // produced nothing — try the next model
+          } catch (err) {
+            lastErr = err;
+            if (req.signal.aborted) {
+              controller.close();
+              return;
+            }
+            if (produced) {
+              // Partial answer already sent — can't switch models cleanly, so
+              // surface a readable note inline and stop.
+              controller.enqueue(encoder.encode(friendlyError(err)));
+              controller.close();
+              return;
+            }
+            // no output yet — fall through to the next model
           }
-          // produced nothing — try the next model
-        } catch (err) {
-          lastErr = err;
-          if (req.signal.aborted) {
-            controller.close();
-            return;
-          }
-          if (produced) {
-            // Partial answer already sent — can't switch models cleanly, so
-            // surface a readable note inline and stop.
-            controller.enqueue(encoder.encode(friendlyError(err)));
-            controller.close();
-            return;
-          }
-          // no output yet — fall through to the next model
         }
-      }
 
-      controller.enqueue(encoder.encode(friendlyError(lastErr)));
-      controller.close();
+        controller.enqueue(encoder.encode(friendlyError(lastErr)));
+        controller.close();
+      };
+
+      // propagateAttributes tags every AI SDK span created inside `run` with
+      // the session/name, so a conversation's turns group in Langfuse.
+      return telemetryEnabled
+        ? propagateAttributes(
+            { sessionId, traceName: "portfolio-chat", tags: ["portfolio-chat"] },
+            run,
+          )
+        : run();
     },
   });
 

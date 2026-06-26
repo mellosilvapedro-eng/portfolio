@@ -206,7 +206,7 @@ export function AiChat() {
       const res = await fetch("/api/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: msgs }),
+        body: JSON.stringify({ messages: msgs, sessionId }),
       });
       if (!res.ok) return;
       const data = (await res.json()) as { suggestions?: unknown };
@@ -232,7 +232,7 @@ export function AiChat() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({ messages: history, sessionId: id }),
         signal: ac.signal,
       });
 

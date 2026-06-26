@@ -1,7 +1,16 @@
 import { generateText } from "ai";
+import { propagateAttributes } from "@langfuse/tracing";
 import { publishedProjects } from "@/lib/projects";
 import { site } from "@/lib/site";
-import { getOpenRouter, isAllowedOrigin, models, sanitize } from "@/lib/chat-util";
+import {
+  flushTelemetry,
+  getOpenRouter,
+  isAllowedOrigin,
+  models,
+  sanitize,
+  sessionIdOf,
+  telemetryEnabled,
+} from "@/lib/chat-util";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,7 +67,7 @@ export async function POST(req: Request) {
     return Response.json({ suggestions: [] });
   }
 
-  let body: { messages?: unknown };
+  let body: { messages?: unknown; sessionId?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -67,6 +76,9 @@ export async function POST(req: Request) {
 
   const messages = sanitize(body.messages);
   if (messages.length === 0) return Response.json({ suggestions: [] });
+
+  const sessionId = sessionIdOf(body.sessionId);
+  flushTelemetry();
 
   const convo = messages
     .map((m) => `${m.role === "user" ? "Visitor" : "Pedro"}: ${m.content}`)
@@ -77,23 +89,36 @@ export async function POST(req: Request) {
 
   // Reuse the chat model list with failover; first model that returns usable
   // suggestions wins. Any failure degrades to an empty list (chat is unaffected).
-  for (const model of models()) {
-    try {
-      const { text } = await generateText({
-        model: openrouter(model),
-        system: SUGGEST_SYSTEM,
-        prompt,
-        temperature: 0.7,
-        maxOutputTokens: 200,
-        abortSignal: req.signal,
-      });
-      const suggestions = parseSuggestions(text);
-      if (suggestions.length) return Response.json({ suggestions });
-    } catch {
-      if (req.signal.aborted) break;
-      // try the next model
+  const generate = async (): Promise<string[]> => {
+    for (const model of models()) {
+      try {
+        const { text } = await generateText({
+          model: openrouter(model),
+          system: SUGGEST_SYSTEM,
+          prompt,
+          temperature: 0.7,
+          maxOutputTokens: 200,
+          abortSignal: req.signal,
+          experimental_telemetry: telemetryEnabled
+            ? { isEnabled: true, functionId: "portfolio-suggest", metadata: { model } }
+            : undefined,
+        });
+        const suggestions = parseSuggestions(text);
+        if (suggestions.length) return suggestions;
+      } catch {
+        if (req.signal.aborted) break;
+        // try the next model
+      }
     }
-  }
+    return [];
+  };
 
-  return Response.json({ suggestions: [] });
+  const suggestions = telemetryEnabled
+    ? await propagateAttributes(
+        { sessionId, traceName: "portfolio-suggest", tags: ["portfolio-suggest"] },
+        generate,
+      )
+    : await generate();
+
+  return Response.json({ suggestions });
 }

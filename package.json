@@ -9,7 +9,10 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@langfuse/otel": "^5.7.0",
+    "@langfuse/tracing": "^5.7.0",
     "@openrouter/ai-sdk-provider": "^2.10.0",
+    "@opentelemetry/sdk-trace-node": "^2.8.0",
     "@vercel/analytics": "^2.0.1",
     "ai": "^6.0.0",
     "framer-motion": "^12.42.0",

@@ -1,4 +1,6 @@
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
+import { after } from "next/server";
+import { langfuseSpanProcessor } from "@/instrumentation";
 import { site } from "@/lib/site";
 
 /** Shared helpers for the chat + suggest route handlers. Server-only. */
@@ -76,4 +78,32 @@ export function sanitize(raw: unknown): ChatMessage[] {
     )
     .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_CHARS) }))
     .slice(-MAX_HISTORY);
+}
+
+/**
+ * True when Langfuse telemetry is configured (LANGFUSE_* keys present). Route
+ * handlers use it to gate `experimental_telemetry` so the agent has zero
+ * tracing overhead — and works unchanged — when keys are absent.
+ */
+export const telemetryEnabled = langfuseSpanProcessor !== null;
+
+/**
+ * Flush buffered OTel spans before the serverless function freezes. Must be
+ * called inside a request handler; `after()` runs the flush once the response
+ * (including a streamed body) has fully finished. No-op when telemetry is off.
+ */
+export function flushTelemetry(): void {
+  // Capture into a local so the null-narrowing survives into the deferred
+  // `after` closure (TS won't narrow the imported binding across it).
+  const processor = langfuseSpanProcessor;
+  if (processor) {
+    after(() => processor.forceFlush());
+  }
+}
+
+/** Clamp a client-supplied session id to Langfuse's ≤200-char string limit. */
+export function sessionIdOf(raw: unknown): string | undefined {
+  return typeof raw === "string" && raw.trim()
+    ? raw.trim().slice(0, 200)
+    : undefined;
 }
