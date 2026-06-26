@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/components/theme-provider";
+import { AiChat } from "@/components/ai-chat";
 import { site } from "@/lib/site";
 
 const inter = Inter({
@@ -48,6 +49,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           {children}
+          <AiChat />
         </ThemeProvider>
         <Analytics />
       </body>

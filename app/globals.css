@@ -9,6 +9,11 @@
   --border: #ececec;
   --hover: #f2f2f2;
   --accent: #1a1a1a;
+
+  /* Gradient-border stops (to top-left). Softened on white. */
+  --gb-from: #dcdcdc;
+  --gb-via: #ececec;
+  --gb-to: #cfcfcf;
 }
 
 .dark {
@@ -18,6 +23,11 @@
   --border: #1f1f1f;
   --hover: #141414;
   --accent: #ededed;
+
+  /* neutral-700 → neutral-800 → neutral-600 */
+  --gb-from: #404040;
+  --gb-via: #262626;
+  --gb-to: #525252;
 }
 
 @theme inline {
@@ -54,6 +64,52 @@ body {
 /* Tabular numbers for metrics */
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Thin, theme-aware scrollbar for the chat panel */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+/* Gradient border — a 1px gradient ring that follows the element's radius.
+   Painted as a masked pseudo-element so it sits over the edge without
+   disturbing translucent / backdrop-blurred fills (the chat panel). The host
+   element should drop its own `border` and set `gradient-border`. */
+@layer base {
+  /* The ring needs a positioning context. Keep this in the `base` layer so an
+     explicit position utility (the FAB/panel are `absolute`) still wins —
+     otherwise this unlayered `relative` would override it and break anchoring. */
+  .gradient-border {
+    position: relative;
+  }
+}
+.gradient-border::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px; /* ring thickness */
+  background: linear-gradient(
+    to top left,
+    var(--gb-from),
+    var(--gb-via),
+    var(--gb-to)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }
 
 /* Staggered entrance for the home content */

@@ -32,5 +32,6 @@ export const site = {
   links: {
     linkedin: "https://www.linkedin.com/in/pedrodesinmello/",
     github: "https://github.com/mellosilvapedro-eng",
+    substack: "https://pedromellopp.substack.com/",
   },
 } as const;
