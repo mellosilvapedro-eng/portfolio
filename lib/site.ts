@@ -15,6 +15,12 @@ export const site = {
   /** Side projects and explorations, shown below selected work. */
   experiments: [
     {
+      name: "Skills",
+      description: "Design skills for AI agents",
+      url: "/skills",
+      year: "2026",
+    },
+    {
       name: "SpecNote",
       description: "Notes that become specs",
       url: "https://specnote.vercel.app/",
