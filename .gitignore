@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# claude code — local/personal config stays out of the repo (skills are tracked)
+.claude/settings.local.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
