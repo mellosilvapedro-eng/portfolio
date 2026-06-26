@@ -28,7 +28,7 @@ export const site = {
     },
   ],
   url: "https://pedromello.cc",
-  email: "hello@pedromello.cc",
+  email: "mellosilvapedro@gmail.com",
   links: {
     linkedin: "https://www.linkedin.com/in/pedrodesinmello/",
     github: "https://github.com/mellosilvapedro-eng",
