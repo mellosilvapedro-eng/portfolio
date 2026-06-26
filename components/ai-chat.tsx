@@ -394,7 +394,7 @@ export function AiChat() {
               exit={{ opacity: 0, scale: 0.9, y: 4 }}
               transition={{ type: "spring", stiffness: 460, damping: 30 }}
               onClick={() => setOpen(true)}
-              className="gradient-border absolute bottom-0 right-0 inline-flex h-9 items-center gap-2 whitespace-nowrap rounded-[10px] bg-background px-3.5 text-[13px] font-medium text-foreground shadow-lg transition-[background-color,scale] hover:bg-hover active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+              className="gradient-border absolute bottom-0 right-0 inline-flex h-9 w-max items-center gap-2 whitespace-nowrap rounded-[10px] bg-background px-3.5 text-[13px] font-medium text-foreground shadow-lg transition-[background-color,scale] hover:bg-hover active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
             >
               <Logo className="h-4 w-4 rounded-[4px]" />
               Ask me anything
