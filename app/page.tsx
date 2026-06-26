@@ -29,16 +29,12 @@ export default function Home() {
       </div>
 
       <section className="animate-rise mt-16" style={{ animationDelay: "80ms" }}>
-        <h2 className="mb-2 px-3 text-sm font-medium text-muted">
-          Selected work
-        </h2>
+        <h2 className="mb-2 text-sm font-medium text-muted">Selected work</h2>
         <ProjectList projects={publishedProjects} />
       </section>
 
       <section className="animate-rise mt-12" style={{ animationDelay: "120ms" }}>
-        <h2 className="mb-2 px-3 text-sm font-medium text-muted">
-          Experiments
-        </h2>
+        <h2 className="mb-2 text-sm font-medium text-muted">Experiments</h2>
         <ExperimentList />
       </section>
 
