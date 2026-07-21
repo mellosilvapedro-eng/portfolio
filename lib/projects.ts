@@ -8,6 +8,30 @@ export type ProcessStep = {
   description: string;
 };
 
+export type MediaItem = {
+  /** How the asset is rendered. */
+  type: "image" | "video" | "component";
+  /** Path under /public (for image / video) — e.g. "/projects/x/seats.mp4". */
+  src?: string;
+  /** Registry key for type: "component" — e.g. "jusia-paywall". */
+  component?: string;
+  /** Alt text for images / accessible label for video. */
+  alt?: string;
+  /** Optional caption shown beneath the tile. */
+  caption?: string;
+  /** Poster frame for videos (path under /public). */
+  poster?: string;
+  /** "full" spans the row; "half" pairs 2-up. Defaults to "full". */
+  span?: "full" | "half";
+  /** CSS aspect-ratio for the stage, e.g. "16 / 9". Defaults to "16 / 9". */
+  aspect?: string;
+  /** How image / video fills the stage. Defaults to "contain". */
+  fit?: "cover" | "contain";
+  /** When true, the image floats on the neutral stage with a rounded border +
+   * shadow (like the video), instead of rendering edge-to-edge. */
+  frame?: boolean;
+};
+
 export type Project = {
   slug: string;
   /** Short title used in the home list. */
@@ -29,6 +53,8 @@ export type Project = {
   solution: string;
   process: ProcessStep[];
   results: Metric[];
+  /** Media shown in the gallery at the end of the case study. */
+  media?: MediaItem[];
   /** Set to false for projects that are still drafts. */
   published: boolean;
 };
@@ -72,6 +98,29 @@ export const projects: Project[] = [
       { value: "5,000+", label: "new subscriptions post-launch" },
       { value: "20,000", label: "monthly active subscribers in 4 months" },
     ],
+    media: [
+      {
+        type: "video",
+        src: "/projects/monetization-jusia/video-example-1.mp4",
+        aspect: "2164 / 1080",
+        alt: "Jus AI product walkthrough.",
+        caption: "Jus AI answering a legal due-diligence prompt.",
+      },
+      {
+        type: "component",
+        component: "jusia-paywall",
+        caption: "The output-based paywall, shown right after the AI delivers value.",
+      },
+      {
+        type: "image",
+        src: "/projects/monetization-jusia/pro-plans.png",
+        frame: true,
+        aspect: "3010 / 1528",
+        alt: "Jusbrasil's plans page after the repackaging: Essencial, Profissional, and a recommended Premium tier, each including Jus IA, with a monthly/annual toggle.",
+        caption:
+          "The plan repackaging — three tiers built around the AI, with Premium set as the recommended plan to lift ARPU.",
+      },
+    ],
     published: true,
   },
   {
@@ -111,6 +160,23 @@ export const projects: Project[] = [
       { value: "+20%", label: "revenue increase" },
       { value: "+50%", label: "shared accounts blocked" },
     ],
+    media: [
+      {
+        type: "component",
+        component: "device-control",
+        caption: "Hitting the access limit — the user picks a device to disconnect.",
+      },
+      {
+        type: "component",
+        component: "code-verification",
+        caption: "A six-digit code confirms each new device.",
+      },
+      {
+        type: "component",
+        component: "device-lastswitch",
+        caption: "The last-switch warning, framed to convert rather than punish.",
+      },
+    ],
     published: true,
   },
   {
@@ -134,6 +200,13 @@ export const projects: Project[] = [
       },
     ],
     results: [{ value: "+3%", label: "signups" }],
+    media: [
+      {
+        type: "component",
+        component: "segmented-toggle",
+        caption: "A segmented hero that tailors the homepage to each audience.",
+      },
+    ],
     published: false,
   },
   {

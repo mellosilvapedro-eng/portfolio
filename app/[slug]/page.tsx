@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ProjectMedia } from "@/components/project-media";
 import { getProject, projects } from "@/lib/projects";
 import { site } from "@/lib/site";
 
@@ -120,6 +121,8 @@ export default async function ProjectPage({
               ))}
             </dl>
           </Section>
+
+          <ProjectMedia media={project.media} />
         </div>
       </article>
 
