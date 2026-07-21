@@ -37,12 +37,24 @@ export function ProjectMedia({ media }: { media?: MediaItem[] }) {
           >
             <figure className="space-y-2.5">
               <div
-                className={`group relative aspect-square overflow-hidden rounded-lg sm:aspect-video${
+                className={[
+                  "group relative overflow-hidden rounded-lg",
+                  // Coded animations size to their content — a centred card with
+                  // its own padding. A fixed aspect ratio left the stage far
+                  // taller than the card (an exaggerated neutral band).
+                  // Images/videos keep the framed square → 16/9 ratio.
+                  item.type === "component" ? "" : "aspect-square sm:aspect-video",
                   item.type === "image" && !item.frame
                     ? ""
-                    : " bg-foreground/[0.04] transition-colors duration-200 hover:bg-foreground/[0.06]"
-                }`}
-                style={item.aspect ? { aspectRatio: item.aspect } : undefined}
+                    : "bg-foreground/[0.04] transition-colors duration-200 hover:bg-foreground/[0.06]",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                style={
+                  item.aspect && item.type !== "component"
+                    ? { aspectRatio: item.aspect }
+                    : undefined
+                }
               >
                 <MediaTile item={item} />
               </div>
