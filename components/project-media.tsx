@@ -39,11 +39,14 @@ export function ProjectMedia({ media }: { media?: MediaItem[] }) {
               <div
                 className={[
                   "group relative overflow-hidden rounded-lg",
-                  // Coded animations size to their content — a centred card with
-                  // its own padding. A fixed aspect ratio left the stage far
-                  // taller than the card (an exaggerated neutral band).
+                  // Coded animations size to their content — a centred card.
+                  // A fixed aspect ratio left the stage far taller than the card
+                  // (an exaggerated neutral band); extra vertical padding here
+                  // gives the card breathing room without that exaggeration.
                   // Images/videos keep the framed square → 16/9 ratio.
-                  item.type === "component" ? "" : "aspect-square sm:aspect-video",
+                  item.type === "component"
+                    ? "py-8 sm:py-12"
+                    : "aspect-square sm:aspect-video",
                   item.type === "image" && !item.frame
                     ? ""
                     : "bg-foreground/[0.04] transition-colors duration-200 hover:bg-foreground/[0.06]",
