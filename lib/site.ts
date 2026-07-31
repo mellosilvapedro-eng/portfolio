@@ -12,6 +12,49 @@ export const site = {
     "Today, I work on the Growth team at Factorial. I design experiences that help businesses discover value, adopt products, and grow.",
     "Previously, I worked on the Growth Design team at Jusbrasil.",
   ],
+  /** Career history, shown between the intro and selected work.
+   *  `url` turns the company name into a link — Carminga and Wine have none
+   *  yet, so they render as plain text. */
+  experience: [
+    {
+      period: "2026 — Now",
+      role: "Product Designer, Growth",
+      company: "Factorial",
+      url: "https://factorialhr.com/",
+      description:
+        "Leading upselling growth and customer onboarding at Factorial",
+    },
+    {
+      period: "2021 — 2025",
+      role: "Senior Product Designer, Growth",
+      company: "Jusbrasil",
+      url: "https://www.jusbrasil.com.br/",
+      description:
+        "I lead monetization and conversion initiatives at Jusbrasil, working to democratize access to legal information in Brazil.",
+    },
+    {
+      period: "2020 — 2021",
+      role: "Product Designer",
+      company: "Carminga",
+      url: "https://carminga.com/",
+      description:
+        "Solo designer for a German car subscription service, I improved user mobility by refining interfaces and digital experiences.",
+    },
+    {
+      period: "2020 — 2021",
+      role: "Jr Visual Designer",
+      company: "Wine",
+      url: "https://www.wine.com.br/",
+      description:
+        "Visual Designer in the world's largest wine subscription club.",
+    },
+  ] as readonly {
+    period: string;
+    role: string;
+    company: string;
+    url?: string;
+    description: string;
+  }[],
   /** Side projects and explorations, shown below selected work. */
   experiments: [
     {

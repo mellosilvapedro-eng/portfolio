@@ -9,8 +9,10 @@ import {
 } from "react";
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import Link from "next/link";
+import { useChat } from "@/components/chat-provider";
 import { site } from "@/lib/site";
 import { publishedProjects } from "@/lib/projects";
+import { ASK_EVENT, type AskDetail } from "@/lib/ask";
 
 /* ────────────────────────────────────────────────────────────────────────
    Conversation model — an agent session of semantic activities.
@@ -50,8 +52,6 @@ const SUGGESTIONS = [
   "How do you approach monetization design?",
   "What's your design philosophy?",
 ];
-
-const EASE_OUT_STRONG = [0.23, 1, 0.32, 1] as const; // matches --ease-out-strong
 
 /* ────────────────────────────────────────────────────────────────────────
    Inline case-study link cards.
@@ -96,6 +96,46 @@ function parseSegments(text: string, streaming: boolean): Segment[] {
 const stripTokens = (s: string) =>
   s.replace(CASE_TOKEN, "").replace(/\n{3,}/g, "\n\n").trim();
 
+/* ────────────────────────────────────────────────────────────────────────
+   Inline markdown.
+   Pedro's answers come back as plain text but the model still reaches for
+   `**emphasis**`, and rendering it raw leaves the asterisks on screen. This
+   handles the three inline marks that actually show up — bold, italic and
+   code — and nothing else: block markdown never appears in these answers, and
+   a full parser would be a dependency for two characters. Unmatched marks are
+   left as literal text, which is what you want mid-stream while the closing
+   `**` hasn't arrived yet.
+   ──────────────────────────────────────────────────────────────────────── */
+
+const INLINE_MD = /(\*\*[^*\n]+\*\*|(?<![*\w])\*[^*\n]+\*(?!\w)|`[^`\n]+`)/g;
+
+function renderInline(text: string, key: string) {
+  return text.split(INLINE_MD).map((part, i) => {
+    const id = `${key}-${i}`;
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      return (
+        <strong key={id} className="font-medium text-foreground">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
+      return (
+        <code
+          key={id}
+          className="rounded bg-foreground/[0.08] px-1 py-px font-mono text-[12px]"
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
+      return <em key={id}>{part.slice(1, -1)}</em>;
+    }
+    return part;
+  });
+}
+
 function relativeTime(t: number): string {
   const s = Math.floor((Date.now() - t) / 1000);
   if (s < 60) return "just now";
@@ -130,7 +170,7 @@ function groupByDay(sessions: Session[]) {
 
 export function AiChat() {
   const [mounted, setMounted] = useState(false);
-  const [open, setOpen] = useState(false);
+  const { open, setOpen } = useChat();
   const [view, setView] = useState<"chat" | "history">("chat");
   const [{ sessions, currentId }, setStore] = useState(() => {
     const now = Date.now();
@@ -155,6 +195,9 @@ export function AiChat() {
   const turnSeq = useRef(0); // bumped each send/newChat; guards stale suggestions
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  // Points at the latest askExternally so the window listener (attached once)
+  // always fires against current state without re-subscribing every render.
+  const askRef = useRef<(prompt: string) => void>(() => {});
 
   const current = sessions.find((s) => s.id === currentId) ?? sessions[0];
   // Only finished conversations belong in history — skip blank "New chat" sessions.
@@ -193,6 +236,22 @@ export function AiChat() {
     const el = scrollRef.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [current.activities, busy, view, open, suggest.items]);
+
+  // No dep array: runs after every commit so the ref tracks the latest closure.
+  useEffect(() => {
+    askRef.current = askExternally;
+  });
+
+  // A CTA anywhere on the site (e.g. a case-study "Ask me about this project"
+  // button) fires `pedro:ask`; spring open and answer it in a fresh thread.
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      const { prompt } = (e as CustomEvent<AskDetail>).detail ?? {};
+      if (prompt) askRef.current(prompt);
+    };
+    window.addEventListener(ASK_EVENT, onAsk);
+    return () => window.removeEventListener(ASK_EVENT, onAsk);
+  }, []);
 
   // Best-effort contextual follow-ups, fetched after an answer completes.
   // Guarded by turnSeq so a newer prompt's suggestions can't be clobbered by a
@@ -379,167 +438,190 @@ export function AiChat() {
     setTimeout(() => taRef.current?.focus(), 0);
   }
 
+  // Driven by the `pedro:ask` event, not the composer. Springs the panel open
+  // and answers in a clean, single-topic thread: it reuses the current session
+  // only when it's still empty, otherwise it starts a fresh one so an external
+  // ask never lands inside an unrelated conversation. Takes over any in-flight
+  // answer, so it doesn't wait behind the `busy` guard the way send() does.
+  function askExternally(rawPrompt: string) {
+    const body = rawPrompt.trim();
+    if (!body) return;
+
+    abortRef.current?.abort();
+    abortRef.current = null;
+
+    setOpen(true);
+    setView("chat");
+    turnSeq.current += 1;
+    setSuggest({ sessionId: "", items: [] });
+
+    const now = Date.now();
+    const promptActivity = act({ type: "prompt", body });
+
+    let targetId: string;
+    if (current.activities.length === 0) {
+      targetId = current.id;
+      patch(current.id, (s) => ({
+        ...s,
+        title: truncate(body),
+        updatedAt: now,
+        activities: [promptActivity],
+      }));
+    } else {
+      const s: Session = {
+        id: uid(),
+        title: truncate(body),
+        createdAt: now,
+        updatedAt: now,
+        activities: [promptActivity],
+      };
+      targetId = s.id;
+      setStore((st) => ({ sessions: [s, ...st.sessions], currentId: s.id }));
+    }
+
+    setBusy(true);
+    void streamReply(targetId, [{ role: "user", content: body }]);
+  }
+
   if (!mounted) return null;
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="fixed bottom-5 right-5 z-50 font-sans">
-        {/* FAB */}
-        <AnimatePresence initial={false}>
-          {!open && (
-            <motion.button
-              key="fab"
-              initial={{ opacity: 0, scale: 0.9, y: 4 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 4 }}
-              transition={{ type: "spring", stiffness: 460, damping: 30 }}
-              onClick={() => setOpen(true)}
-              className="gradient-border absolute bottom-0 right-0 inline-flex h-9 w-max items-center gap-2 whitespace-nowrap rounded-[10px] bg-background px-3.5 text-[13px] font-medium text-foreground shadow-lg transition-[background-color,scale] hover:bg-hover active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
-            >
-              <Logo className="h-4 w-4 rounded-[4px]" />
-              Ask me anything
-            </motion.button>
-          )}
-        </AnimatePresence>
+      {/* Docked (lg+), this is a layer *underneath* the page: a full-height rail
+          pinned to the right that the shell slides off to reveal, so it needs no
+          entrance of its own and stays mounted at z-0. Undocked, there's no room
+          beside the content, so the same element becomes an inset sheet on top
+          and fades in. */}
+      <aside
+        role="dialog"
+        aria-label="Ask Pedro"
+        aria-hidden={!open}
+        inert={!open}
+        className={`fixed inset-1.5 z-50 ml-auto flex max-w-[26rem] flex-col overflow-hidden rounded-2xl bg-layer font-sans shadow-[0_1px_2px_rgba(17,17,24,0.04),0_8px_24px_rgba(17,17,24,0.1),0_18px_44px_rgba(17,17,24,0.1)] ring-1 ring-border transition-[opacity,transform] duration-500 ease-drawer lg:visible lg:inset-y-0 lg:left-auto lg:right-0 lg:z-0 lg:w-96 lg:max-w-none lg:translate-y-0 lg:rounded-none lg:opacity-100 lg:shadow-none lg:ring-0 dark:shadow-[0_2px_8px_rgba(0,0,0,0.4),0_12px_32px_rgba(0,0,0,0.55)] ${
+          open
+            ? "lg:translate-x-0"
+            : // Undocked it fades out of the way; docked it stays put but rests
+              // a nudge to the right, so opening reads as the shell peeling off
+              // a layer that settles into place, not a panel arriving.
+              "invisible translate-y-2 opacity-0 lg:translate-x-2"
+        }`}
+      >
+        {/* header */}
+        <header className="flex h-12 shrink-0 items-center gap-1 border-b border-foreground/10 pl-4 pr-2.5">
+          <span className="flex-1 truncate text-[13px] font-medium text-foreground">
+            {view === "history" ? "History" : current.title}
+          </span>
+          <IconButton
+            label="History"
+            active={view === "history"}
+            onClick={() => setView((v) => (v === "history" ? "chat" : "history"))}
+          >
+            <Clock />
+          </IconButton>
+          <IconButton label="New chat" onClick={newChat}>
+            <Plus />
+          </IconButton>
+          <IconButton label="Close" onClick={() => setOpen(false)}>
+            <Close />
+          </IconButton>
+        </header>
 
-        {/* Panel — springs open out of the bottom-right corner */}
-        <AnimatePresence>
-          {open && (
-            <motion.section
-              key="panel"
-              role="dialog"
-              aria-label="Ask Pedro"
-              initial={{ opacity: 0, scale: 0.96, y: 12 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{
-                opacity: 0,
-                scale: 0.97,
-                y: 8,
-                transition: { duration: 0.16, ease: EASE_OUT_STRONG },
-              }}
-              transition={{ duration: 0.32, ease: EASE_OUT_STRONG }}
-              style={{ transformOrigin: "bottom right" }}
-              className="gradient-border fixed inset-x-0 bottom-0 flex h-[85dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-background/95 shadow-2xl backdrop-blur-xl sm:absolute sm:inset-x-auto sm:bottom-0 sm:right-0 sm:h-[32rem] sm:max-h-[80vh] sm:w-[24rem] sm:max-w-[calc(100vw_-_2.5rem)] sm:rounded-2xl"
-            >
-              {/* header */}
-              <header className="flex h-11 shrink-0 items-center gap-1 border-b border-border pl-3.5 pr-2">
-                <span className="flex-1 truncate text-[13px] font-medium text-foreground">
-                  {view === "history" ? "History" : current.title}
-                </span>
-                <IconButton
-                  label="History"
-                  active={view === "history"}
-                  onClick={() => setView((v) => (v === "history" ? "chat" : "history"))}
-                >
-                  <Clock />
-                </IconButton>
-                <IconButton label="New chat" onClick={newChat}>
-                  <Plus />
-                </IconButton>
-                <IconButton label="Close" onClick={() => setOpen(false)}>
-                  <Close />
-                </IconButton>
-              </header>
-
-              {/* body */}
-              {view === "history" ? (
-                <div className="scrollbar-thin flex-1 overflow-y-auto px-1.5 py-2">
-                  {Object.keys(grouped).length === 0 ? (
-                    <p className="px-2.5 py-6 text-center text-[13px] text-muted">
-                      No conversations yet.
-                    </p>
-                  ) : (
-                    Object.entries(grouped).map(([label, items]) => (
-                      <div key={label} className="mb-1.5">
-                        <h4 className="px-2.5 py-1 text-[11px] font-semibold text-muted">
-                          {label}
-                        </h4>
-                        {items.map((s) => (
-                          <button
-                            key={s.id}
-                            onClick={() => {
-                              setStore((st) => ({ ...st, currentId: s.id }));
-                              setSuggest({ sessionId: "", items: [] });
-                              setView("chat");
-                            }}
-                            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-hover"
-                          >
-                            <span className="flex-1 truncate text-[13px] text-foreground">
-                              {s.title}
-                            </span>
-                            <span className="shrink-0 text-[12px] tabular-nums text-muted">
-                              {relativeTime(s.updatedAt)}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    ))
-                  )}
-                </div>
-              ) : (
-                <div
-                  ref={scrollRef}
-                  className="scrollbar-thin flex flex-1 flex-col gap-3.5 overflow-y-auto px-3.5 py-3.5"
-                >
-                  {current.activities.length === 0 && !busy ? (
-                    <EmptyState onPick={(q) => send(q)} />
-                  ) : (
-                    <>
-                      {current.activities.map((a) => (
-                        <ActivityRow key={a.id} content={a.content} />
-                      ))}
-                      {thinking && <ThinkingRow />}
-                      {!busy &&
-                        lastType === "response" &&
-                        suggest.sessionId === current.id &&
-                        suggest.items.length > 0 && (
-                          <FollowUps items={suggest.items} onPick={(q) => send(q)} />
-                        )}
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* composer */}
-              {view === "chat" && (
-                <div className="shrink-0 px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-3">
-                  <div className="rounded-[11px] border border-border bg-hover px-3 py-2.5 transition-colors focus-within:border-muted">
-                    <textarea
-                      ref={taRef}
-                      rows={1}
-                      value={input}
-                      placeholder="Ask me anything…"
-                      onChange={(e) => setInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          send();
-                        }
+        {/* body */}
+        {view === "history" ? (
+          <div className="scrollbar-thin flex-1 overflow-y-auto px-2 py-3">
+            {Object.keys(grouped).length === 0 ? (
+              <p className="px-2.5 py-6 text-center text-[13px] text-muted">
+                No conversations yet.
+              </p>
+            ) : (
+              Object.entries(grouped).map(([label, items]) => (
+                <div key={label} className="mb-1.5">
+                  <h4 className="px-2.5 py-1 text-[11px] font-semibold text-muted">
+                    {label}
+                  </h4>
+                  {items.map((s) => (
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        setStore((st) => ({ ...st, currentId: s.id }));
+                        setSuggest({ sessionId: "", items: [] });
+                        setView("chat");
                       }}
-                      className="max-h-24 w-full resize-none bg-transparent text-[13px] leading-relaxed text-foreground outline-none placeholder:text-muted"
-                    />
-                    <div className="mt-1.5 flex items-center">
-                      <div className="flex-1" />
-                      <button
-                        onClick={() => send()}
-                        disabled={!input.trim() || busy}
-                        aria-label="Send"
-                        className={`grid h-7 w-7 place-items-center rounded-full transition-[background-color,color,scale] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 ${
-                          input.trim() && !busy
-                            ? "bg-accent text-background hover:opacity-90"
-                            : "bg-hover text-muted"
-                        }`}
-                      >
-                        <ArrowUp />
-                      </button>
-                    </div>
-                  </div>
+                      className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-foreground/[0.06]"
+                    >
+                      <span className="flex-1 truncate text-[13px] text-foreground">
+                        {s.title}
+                      </span>
+                      <span className="shrink-0 text-[12px] tabular-nums text-muted">
+                        {relativeTime(s.updatedAt)}
+                      </span>
+                    </button>
+                  ))}
                 </div>
-              )}
-            </motion.section>
-          )}
-        </AnimatePresence>
-      </div>
+              ))
+            )}
+          </div>
+        ) : (
+          <div
+            ref={scrollRef}
+            className="scrollbar-thin flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-5"
+          >
+            {current.activities.length === 0 && !busy ? (
+              <EmptyState onPick={(q) => send(q)} />
+            ) : (
+              <>
+                {current.activities.map((a) => (
+                  <ActivityRow key={a.id} content={a.content} />
+                ))}
+                {thinking && <ThinkingRow />}
+                {!busy &&
+                  lastType === "response" &&
+                  suggest.sessionId === current.id &&
+                  suggest.items.length > 0 && (
+                    <FollowUps items={suggest.items} onPick={(q) => send(q)} />
+                  )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* composer */}
+        {view === "chat" && (
+          <div className="shrink-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] lg:pb-4">
+            <div className="rounded-[12px] border border-foreground/[0.12] bg-field px-3.5 py-3 transition-colors focus-within:border-foreground/25">
+              <textarea
+                ref={taRef}
+                rows={1}
+                value={input}
+                placeholder="Ask me anything…"
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+                className="max-h-24 w-full resize-none bg-transparent text-[13px] leading-relaxed text-foreground outline-none placeholder:text-muted"
+              />
+              <div className="mt-1.5 flex items-center">
+                <div className="flex-1" />
+                <button
+                  onClick={() => send()}
+                  disabled={!input.trim() || busy}
+                  aria-label="Send"
+                  className={`grid h-7 w-7 place-items-center rounded-full transition-[background-color,color,scale] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 ${
+                    input.trim() && !busy
+                      ? "bg-accent text-background hover:opacity-90"
+                      : "bg-foreground/[0.08] text-muted"
+                  }`}
+                >
+                  <ArrowUp />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </aside>
     </MotionConfig>
   );
 }
@@ -556,7 +638,7 @@ function ActivityRow({ content }: { content: Content }) {
         transition={{ type: "spring", stiffness: 420, damping: 32 }}
         className="flex justify-end"
       >
-        <div className="max-w-[85%] rounded-[12px] bg-hover px-3 py-2 text-[13px] leading-relaxed text-foreground">
+        <div className="max-w-[85%] rounded-[14px] bg-foreground/[0.07] px-3.5 py-2.5 text-[13px] leading-relaxed text-foreground">
           {content.body}
         </div>
       </motion.div>
@@ -583,7 +665,7 @@ function ActivityRow({ content }: { content: Content }) {
         {segments.map((seg, i) =>
           seg.kind === "text" ? (
             <span key={i} className="whitespace-pre-wrap">
-              {seg.text}
+              {renderInline(seg.text, String(i))}
             </span>
           ) : (
             <CaseCard key={i} slug={seg.slug} />
@@ -618,11 +700,11 @@ function CaseCard({ slug }: { slug: string }) {
       initial={{ opacity: 0, y: 6, scale: 0.985 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: "spring", stiffness: 460, damping: 30 }}
-      className="my-2"
+      className="my-3"
     >
       <Link
         href={`/${project.slug}`}
-        className="group/card flex items-center gap-3 rounded-[12px] border border-border px-3 py-2.5 transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+        className="group/card flex items-center gap-3 rounded-[12px] border border-foreground/[0.12] px-3.5 py-3 transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
       >
         <span className="min-w-0 flex-1">
           <span className="block text-[10.5px] font-semibold uppercase tracking-wide text-muted">
@@ -635,7 +717,7 @@ function CaseCard({ slug }: { slug: string }) {
             {project.company} · {project.year}
           </span>
         </span>
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border text-muted transition-colors group-hover/card:border-foreground/30 group-hover/card:text-foreground">
+        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-foreground/[0.2] text-muted transition-colors group-hover/card:border-foreground/30 group-hover/card:text-foreground">
           <ArrowUpRight className="h-3.5 w-3.5" />
         </span>
       </Link>
@@ -671,18 +753,18 @@ function EmptyState({ onPick }: { onPick: (q: string) => void }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="flex flex-1 flex-col items-center justify-center gap-4 text-center"
+      className="flex flex-1 flex-col items-center justify-center gap-5 text-center"
     >
       <Logo className="h-10 w-10 rounded-[10px] shadow-sm" />
       <p className="max-w-[15rem] text-pretty text-[13px] leading-relaxed text-muted">
         Ask me about my work, design approach, and experience — it&apos;s me, Pedro.
       </p>
-      <div className="flex flex-wrap items-center justify-center gap-1.5">
+      <div className="flex flex-col items-center gap-2">
         {SUGGESTIONS.map((q) => (
           <button
             key={q}
             onClick={() => onPick(q)}
-            className="rounded-full border border-border px-3 py-1.5 text-[12px] text-foreground/80 transition-colors hover:bg-hover active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+            className="rounded-full border border-foreground/[0.12] px-3 py-1.5 text-[12px] leading-[18px] text-foreground/80 transition-colors hover:bg-foreground/[0.06] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
           >
             {q}
           </button>
@@ -698,9 +780,9 @@ function FollowUps({ items, onPick }: { items: string[]; onPick: (q: string) => 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.25 }}
-      className="mt-0.5 flex flex-col gap-0.5 border-t border-border pt-2.5"
+      className="mt-1 flex flex-col gap-0.5 border-t border-foreground/10 pt-4"
     >
-      <span className="mb-0.5 px-2 text-[11px] font-medium text-muted">Keep exploring</span>
+      <span className="mb-1.5 px-2 text-[11px] font-medium text-muted">Keep exploring</span>
       {items.map((q, i) => (
         <motion.button
           key={q}
@@ -708,7 +790,7 @@ function FollowUps({ items, onPick }: { items: string[]; onPick: (q: string) => 
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.05, type: "spring", stiffness: 460, damping: 34 }}
           onClick={() => onPick(q)}
-          className="group/fu flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] text-foreground/90 transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+          className="group/fu flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-[13px] text-foreground/90 transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
         >
           <span className="flex-1">{q}</span>
           <ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-muted transition-colors group-hover/fu:text-foreground" />
@@ -731,7 +813,7 @@ function CopyButton({ text }: { text: string }) {
           /* clipboard can be blocked — fail quietly */
         }
       }}
-      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11.5px] text-muted transition-colors hover:bg-hover hover:text-foreground"
+      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11.5px] text-muted transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
     >
       <AnimatePresence mode="wait" initial={false}>
         {copied ? (
@@ -781,8 +863,8 @@ function IconButton({
       title={label}
       className={`grid h-7 w-7 place-items-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 ${
         active
-          ? "bg-hover text-foreground"
-          : "text-muted hover:bg-hover hover:text-foreground"
+          ? "bg-foreground/[0.08] text-foreground"
+          : "text-muted hover:bg-foreground/[0.06] hover:text-foreground"
       }`}
     >
       {children}

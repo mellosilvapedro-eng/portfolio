@@ -25,10 +25,10 @@ export function ProjectMedia({ media }: { media?: MediaItem[] }) {
   if (!media || media.length === 0) return null;
 
   return (
-    // Break out of the max-w-2xl text column so the media reads bigger than the
-    // copy. Centred on the viewport, capped at 64rem, with a gutter so it never
-    // triggers horizontal scroll.
-    <div className="relative left-1/2 w-[min(64rem,100vw-3rem)] -translate-x-1/2">
+    // Wider than the reading column so the media reads bigger than the copy.
+    // Sized off the shell rather than the viewport: the assistant rail takes
+    // real width away, and 100vw would push the gallery under it.
+    <div className="mx-auto w-full max-w-[64rem]">
       <ul className="grid grid-cols-1 gap-10 sm:grid-cols-2">
           {media.map((item, i) => (
           <li

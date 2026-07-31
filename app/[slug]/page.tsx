@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProjectMedia } from "@/components/project-media";
+import { SiteNav } from "@/components/site-nav";
 import { getProject, projects } from "@/lib/projects";
-import { site } from "@/lib/site";
 
 export function generateStaticParams() {
   return projects.map((project) => ({ slug: project.slug }));
@@ -32,113 +31,117 @@ export default async function ProjectPage({
   const project = getProject(slug);
   if (!project) notFound();
 
+  const hasMedia = !!project.media && project.media.length > 0;
+  const nav = [
+    { label: "About", target: "about" },
+    ...(hasMedia ? [{ label: "Screens", target: "screens" }] : []),
+    {
+      label: "Ask about it",
+      ask: `Walk me through your "${project.title}" project at ${project.company}.`,
+    },
+  ];
+
   return (
-    <main className="mx-auto max-w-2xl px-6 py-20 sm:py-24">
-      <Link
-        href="/"
-        className="group inline-flex items-center gap-1.5 text-sm text-muted transition-colors duration-150 hover:text-foreground"
+    <main className="min-h-dvh px-6 pb-36 pt-20 sm:pt-[6.5rem]">
+      <article
+        id="about"
+        className="animate-rise mx-auto w-full max-w-[39rem] scroll-mt-24"
       >
-        <span
-          aria-hidden="true"
-          className="transition-transform duration-200 ease-out-strong group-hover:-translate-x-0.5"
-        >
-          ←
-        </span>
-        {site.name}
-      </Link>
+        <h1 className="text-balance text-2xl font-medium leading-tight tracking-tight sm:text-[1.875rem]">
+          {project.headline}
+        </h1>
 
-      <article className="animate-rise mt-12">
-        <header className="space-y-5">
-          <h1 className="text-2xl font-medium leading-tight tracking-tight sm:text-3xl">
-            {project.headline}
-          </h1>
-          <dl className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
-            <Meta label="Company">
-              {project.url ? (
-                <a
-                  href={project.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline decoration-border underline-offset-4 transition-colors duration-150 hover:text-foreground hover:decoration-foreground"
-                >
-                  {project.company}
-                </a>
-              ) : (
-                project.company
-              )}
-            </Meta>
-            <Meta label="Role">{project.role}</Meta>
-            <Meta label="Year">{project.year}</Meta>
-            <Meta label="Status">{project.status}</Meta>
-            {project.team ? <Meta label="Team">{project.team}</Meta> : null}
-          </dl>
-        </header>
-
-        {!project.published ? (
-          <p className="mt-10 rounded-lg border border-border px-4 py-3 text-sm text-muted">
-            This case study is still a draft.
-          </p>
-        ) : null}
+        {/* Credits run inline under the title and wrap on their own — the four
+            short ones share a line and Team drops to the next. */}
+        <dl className="mt-12 flex flex-wrap gap-3 text-sm leading-5">
+          <Resource label="Company">
+            {project.url ? (
+              <a
+                href={project.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-link hover:opacity-70"
+              >
+                {project.company}
+              </a>
+            ) : (
+              project.company
+            )}
+          </Resource>
+          <Resource label="Role">{project.role}</Resource>
+          <Resource label="Year">{project.year}</Resource>
+          <Resource label="Status">{project.status}</Resource>
+          {project.team ? (
+            <Resource label="Team">{project.team}</Resource>
+          ) : null}
+        </dl>
 
         <div className="mt-12 space-y-12">
-          <Section title="The problem">
-            <p>{project.problem}</p>
-          </Section>
+            {!project.published ? (
+              <p className="rounded-lg border border-border px-4 py-3 text-sm text-muted">
+                This case study is still a draft.
+              </p>
+            ) : null}
 
-          <Section title="The solution">
-            <p>{project.solution}</p>
-          </Section>
+            <Section title="The problem">
+              <p>{project.problem}</p>
+            </Section>
 
-          <Section title="Process">
-            <ol className="space-y-6">
-              {project.process.map((step, i) => (
-                <li key={step.title} className="flex gap-4">
-                  <span className="mt-0.5 shrink-0 text-sm text-muted tabular">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <div className="space-y-1">
-                    <h3 className="font-medium text-foreground">
-                      {step.title}
-                    </h3>
-                    <p className="text-foreground/80">{step.description}</p>
+            <Section title="The solution">
+              <p>{project.solution}</p>
+            </Section>
+
+            <Section title="Process">
+              <ol className="space-y-6">
+                {project.process.map((step, i) => (
+                  <li key={step.title} className="flex gap-4">
+                    {/* Fixed column so 01/02/03 hang on one edge — the design's
+                        numbers are intrinsically sized and drift 2px apart. */}
+                    <span className="mt-0.5 w-[18px] shrink-0 text-sm leading-5 text-muted tabular">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="font-medium leading-[26px] text-foreground">
+                        {step.title}
+                      </h3>
+                      <p className="mt-1 leading-[26px] text-foreground/80">
+                        {step.description}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </Section>
+
+            <Section title="Results">
+              <dl className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                {project.results.map((metric) => (
+                  <div key={metric.label} className="space-y-1">
+                    <dt className="text-[30px] font-medium leading-9 tracking-tight text-foreground/80 tabular">
+                      {metric.value}
+                    </dt>
+                    <dd className="text-sm leading-snug text-muted">
+                      {metric.label}
+                    </dd>
                   </div>
-                </li>
-              ))}
-            </ol>
-          </Section>
-
-          <Section title="Results">
-            <dl className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-              {project.results.map((metric) => (
-                <div key={metric.label} className="space-y-1">
-                  <dt className="text-3xl font-medium tracking-tight tabular">
-                    {metric.value}
-                  </dt>
-                  <dd className="text-sm leading-snug text-muted">
-                    {metric.label}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </Section>
-
-          <ProjectMedia media={project.media} />
+                ))}
+              </dl>
+            </Section>
         </div>
       </article>
 
-      <footer className="mt-20 border-t border-border pt-8">
-        <Link
-          href="/"
-          className="text-sm text-muted transition-colors duration-150 hover:text-foreground"
-        >
-          ← All work
-        </Link>
-      </footer>
+      {hasMedia ? (
+        <div id="screens" className="mt-12 scroll-mt-24">
+          <ProjectMedia media={project.media} />
+        </div>
+      ) : null}
+
+      <SiteNav items={nav} back="/" />
     </main>
   );
 }
 
-function Meta({
+function Resource({
   label,
   children,
 }: {
@@ -146,8 +149,8 @@ function Meta({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1">
-      <dt className="text-muted">{label}</dt>
+    <div className="flex gap-2 leading-5">
+      <dt className="shrink-0 text-muted">{label}</dt>
       <dd className="text-foreground">{children}</dd>
     </div>
   );

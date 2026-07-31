@@ -4,6 +4,8 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AiChat } from "@/components/ai-chat";
+import { ChatProvider } from "@/components/chat-provider";
+import { SiteShell } from "@/components/site-shell";
 import { site } from "@/lib/site";
 
 const inter = Inter({
@@ -48,8 +50,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <AiChat />
+          <ChatProvider>
+            {/* The assistant is painted first, as the layer the page floats on. */}
+            <AiChat />
+            <SiteShell>{children}</SiteShell>
+          </ChatProvider>
         </ThemeProvider>
         <Analytics />
       </body>

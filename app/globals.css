@@ -10,10 +10,32 @@
   --hover: #f2f2f2;
   --accent: #1a1a1a;
 
-  /* Gradient-border stops (to top-left). Softened on white. */
-  --gb-from: #dcdcdc;
-  --gb-via: #ececec;
-  --gb-to: #cfcfcf;
+  /* The layer that sits *behind* the page — the assistant rail is painted on
+     it, and the content shell floats above. Held to the same ~10-point step
+     the dark ground uses (#0a0a0a → #151515), so the separation reads without
+     ever becoming a colour of its own. */
+  --layer: #f2f2f2;
+  /* Inset field on the layer (the chat composer). */
+  --field: #ffffff;
+
+  /* Floating nav pill. Its own scale: it's a translucent chip over content, so
+     it can't reuse the page's surface/border tokens. */
+  --nav-bg: rgba(255, 255, 255, 0.75);
+  --nav-fg: #1a1a1a;
+  --nav-muted: #5f5f5f;
+  --nav-active: rgba(0, 0, 0, 0.06);
+  --nav-hover: rgba(0, 0, 0, 0.035);
+  /* Black at 0.2 is a dark-ground value; on white it reads as grime. */
+  --nav-shadow:
+    0 1px 2px rgba(17, 17, 24, 0.05), 0 2px 6px rgba(17, 17, 24, 0.06);
+
+  /* Gradient-border stops (to top-left). On white it's a bevel: neutral-50 at
+     both ends with neutral-400 pulled to 32%, so the dark of the ramp lands
+     off-centre and the edge catches like brushed metal. */
+  --gb-from: #fafafa;
+  --gb-via: #a3a3a3;
+  --gb-to: #fafafa;
+  --gb-via-pos: 32%;
 }
 
 .dark {
@@ -24,10 +46,21 @@
   --hover: #141414;
   --accent: #ededed;
 
+  --layer: #151515;
+  --field: #111111;
+
+  --nav-bg: rgba(24, 24, 24, 0.75);
+  --nav-fg: #ffffff;
+  --nav-muted: #bbbbbb;
+  --nav-active: rgba(255, 255, 255, 0.08);
+  --nav-hover: rgba(255, 255, 255, 0.05);
+  --nav-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1);
+
   /* neutral-700 → neutral-800 → neutral-600 */
   --gb-from: #404040;
   --gb-via: #262626;
   --gb-to: #525252;
+  --gb-via-pos: 50%;
 }
 
 @theme inline {
@@ -37,19 +70,26 @@
   --color-border: var(--border);
   --color-hover: var(--hover);
   --color-accent: var(--accent);
+  --color-layer: var(--layer);
+  --color-field: var(--field);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
   /* Strong easing curves (from Emil Kowalski's design eng notes) */
   --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out-strong: cubic-bezier(0.77, 0, 0.175, 1);
+  /* Panels that carry weight as they slide — the shell and the chat rail. */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 html {
   scroll-behavior: smooth;
 }
 
+/* The canvas is the layer the content shell floats on — so when the shell
+   gives up room to the assistant, its rounded edge reveals something. The
+   shell paints --background over all of this whenever it's full width. */
 body {
-  background: var(--background);
+  background: var(--layer);
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -101,7 +141,7 @@ body {
   background: linear-gradient(
     to top left,
     var(--gb-from),
-    var(--gb-via),
+    var(--gb-via) var(--gb-via-pos, 50%),
     var(--gb-to)
   );
   -webkit-mask:
@@ -110,6 +150,33 @@ body {
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   pointer-events: none;
+}
+
+/* Floating nav — a translucent chip that blurs whatever scrolls under it.
+   No ring: the edge is the blur and the shadow, nothing drawn. The blur is
+   kept low so what's behind stays legible rather than turning to fog.
+
+   Two things silently kill backdrop-filter, both learned the hard way here:
+   don't hand-write the -webkit- prefix (Lightning CSS dedupes the pair and
+   keeps only the last, dropping the standard property), and don't set
+   `isolation` — isolating the element makes it its own backdrop root, so
+   there's nothing behind it left to blur. */
+.nav-surface {
+  background: var(--nav-bg);
+  backdrop-filter: blur(8px) saturate(1.4);
+  box-shadow: var(--nav-shadow);
+}
+
+/* Inline links. The design underlines them in their own colour
+   (`decoration-from-font`), so the recipe is the same everywhere and only the
+   hover target changes per context. */
+.text-link {
+  text-decoration-line: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition:
+    color 150ms var(--ease-out-strong),
+    opacity 150ms var(--ease-out-strong);
 }
 
 /* Staggered entrance for the home content */

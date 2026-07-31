@@ -1,45 +1,65 @@
+import { ExperienceList } from "@/components/experience-list";
 import { ExperimentList } from "@/components/experiment-list";
 import { ProjectList } from "@/components/project-list";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { SiteNav } from "@/components/site-nav";
 import { publishedProjects } from "@/lib/projects";
 import { site } from "@/lib/site";
 
+const NAV = [
+  { label: "About", target: "about" },
+  { label: "Work", target: "work" },
+  { label: "Ask me anything", ask: true as const },
+];
+
 export default function Home() {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-2xl flex-col px-6 py-20 sm:py-28">
-      <div className="flex items-start justify-between gap-4">
-        <header className="animate-rise space-y-4">
-          <div className="space-y-1">
-            <h1 className="text-lg font-medium tracking-tight">{site.name}</h1>
-            <p className="text-muted">
-              {site.role}
-              <span className="px-1.5 text-border" aria-hidden="true">
-                ·
-              </span>
-              {site.location}
-            </p>
-          </div>
-          <div className="max-w-prose space-y-4 leading-relaxed text-foreground/80">
-            {site.bio.map((paragraph) => (
-              <p key={paragraph}>{withMentions(paragraph)}</p>
-            ))}
-          </div>
-        </header>
-        <ThemeToggle />
-      </div>
+    <main className="mx-auto flex min-h-dvh max-w-2xl flex-col px-6 pb-36 pt-20 sm:pt-28">
+      <header id="about" className="animate-rise scroll-mt-24 space-y-4">
+        <div className="space-y-1">
+          <h1 className="text-lg font-medium tracking-tight">{site.name}</h1>
+          <p className="text-muted">
+            {site.role}
+            <span className="px-1.5 text-border" aria-hidden="true">
+              ·
+            </span>
+            {site.location}
+          </p>
+        </div>
+        <div className="max-w-prose space-y-4 leading-relaxed text-foreground/80">
+          {site.bio.map((paragraph) => (
+            <p key={paragraph}>{withMentions(paragraph)}</p>
+          ))}
+        </div>
+      </header>
 
-      <section className="animate-rise mt-16" style={{ animationDelay: "80ms" }}>
+      <section
+        id="experience"
+        className="animate-rise mt-16 scroll-mt-24"
+        style={{ animationDelay: "60ms" }}
+      >
+        <h2 className="mb-6 text-sm font-medium text-muted">Experience</h2>
+        <ExperienceList />
+      </section>
+
+      <section
+        id="work"
+        className="animate-rise mt-16 scroll-mt-24"
+        style={{ animationDelay: "100ms" }}
+      >
         <h2 className="mb-2 text-sm font-medium text-muted">Selected work</h2>
         <ProjectList projects={publishedProjects} />
       </section>
 
-      <section className="animate-rise mt-12" style={{ animationDelay: "120ms" }}>
+      <section
+        className="animate-rise mt-16"
+        style={{ animationDelay: "140ms" }}
+      >
         <h2 className="mb-2 text-sm font-medium text-muted">Experiments</h2>
         <ExperimentList />
       </section>
 
       <footer
-        className="animate-rise mt-auto flex flex-wrap items-center gap-x-5 gap-y-2 pt-32 text-sm text-muted sm:pt-48"
+        className="animate-rise mt-auto flex flex-wrap items-center gap-x-5 gap-y-2 pt-24 text-sm text-muted sm:pt-[100px]"
         style={{ animationDelay: "200ms" }}
       >
         <FooterLink href={site.links.linkedin}>LinkedIn</FooterLink>
@@ -49,6 +69,8 @@ export default function Home() {
           © {new Date().getFullYear()} {site.name}
         </span>
       </footer>
+
+      <SiteNav items={NAV} />
     </main>
   );
 }
@@ -64,7 +86,7 @@ function withMentions(text: string) {
         href={site.mentions[part]}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-foreground underline decoration-border underline-offset-4 transition-colors duration-150 hover:decoration-foreground"
+        className="text-link text-foreground hover:opacity-70"
       >
         {part}
       </a>
@@ -86,7 +108,7 @@ function FooterLink({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="underline decoration-border underline-offset-4 transition-colors duration-150 hover:text-foreground hover:decoration-foreground"
+      className="text-link hover:text-foreground"
     >
       {children}
     </a>
