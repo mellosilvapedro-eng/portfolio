@@ -1,7 +1,6 @@
-import Link from "next/link";
 import type { Metadata } from "next";
 import { CopyButton } from "@/components/copy-button";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { SiteNav } from "@/components/site-nav";
 import { site } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -13,6 +12,11 @@ export const metadata: Metadata = {
 const REPO = "mellosilvapedro-eng/skills";
 const REPO_URL = `https://github.com/${REPO}`;
 
+const NAV = [
+  { label: "About", target: "about" },
+  { label: "Ask me anything", ask: true as const },
+];
+
 const skills = [
   { name: "design-taste", description: "Design judgment for any interface." },
   { name: "lp-builder", description: "Landing pages that convert." },
@@ -21,36 +25,21 @@ const skills = [
 
 export default function SkillsPage() {
   return (
-    <main className="mx-auto flex min-h-dvh max-w-2xl flex-col px-6 py-20 sm:py-28">
-      <div className="flex items-start justify-between gap-4">
-        <header className="animate-rise space-y-4">
-          <Link
-            href="/"
-            className="group inline-flex items-center gap-1.5 text-sm text-muted transition-colors duration-150 hover:text-foreground"
-          >
-            <span
-              aria-hidden="true"
-              className="transition-transform duration-200 ease-out-strong group-hover:-translate-x-0.5"
-            >
-              ←
-            </span>
-            {site.name}
-          </Link>
-          <div className="space-y-1">
-            <h1 className="text-lg font-medium tracking-tight">Skills</h1>
-            <p className="text-muted">Agent skills for interfaces that feel right</p>
-          </div>
-          <div className="max-w-prose leading-relaxed text-foreground/80">
-            <p>
-              Agent skills that give your AI coding agent design taste — the
-              judgment to build interfaces that feel considered, not generic.
-              Install them and they shape the UI, motion, and landing pages it
-              produces. Drawn from my work on SpecNote, Paste, and this site.
-            </p>
-          </div>
-        </header>
-        <ThemeToggle />
-      </div>
+    <main className="mx-auto flex min-h-dvh max-w-2xl flex-col px-6 pb-36 pt-20 sm:pt-28">
+      <header id="about" className="animate-rise scroll-mt-24 space-y-4">
+        <div className="space-y-1">
+          <h1 className="text-lg font-medium tracking-tight">Skills</h1>
+          <p className="text-muted">Agent skills for interfaces that feel right</p>
+        </div>
+        <div className="max-w-prose leading-relaxed text-foreground/80">
+          <p>
+            Agent skills that give your AI coding agent design taste — the
+            judgment to build interfaces that feel considered, not generic.
+            Install them and they shape the UI, motion, and landing pages it
+            produces. Drawn from my work on SpecNote, Paste, and this site.
+          </p>
+        </div>
+      </header>
 
       <section className="animate-rise mt-14" style={{ animationDelay: "80ms" }}>
         <h2 className="mb-2 text-sm font-medium text-muted">Install everything</h2>
@@ -62,7 +51,7 @@ export default function SkillsPage() {
             href="https://skills.sh"
             target="_blank"
             rel="noopener noreferrer"
-            className="underline decoration-border underline-offset-4 transition-colors duration-150 hover:text-foreground hover:decoration-foreground"
+            className="text-link hover:text-foreground"
           >
             skills.sh
           </a>{" "}
@@ -112,6 +101,8 @@ export default function SkillsPage() {
           © {new Date().getFullYear()} {site.name}
         </span>
       </footer>
+
+      <SiteNav items={NAV} back="/" />
     </main>
   );
 }
@@ -128,7 +119,7 @@ function FooterLink({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="underline decoration-border underline-offset-4 transition-colors duration-150 hover:text-foreground hover:decoration-foreground"
+      className="text-link hover:text-foreground"
     >
       {children}
     </a>
