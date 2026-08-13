@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "logo:pixels": "node scripts/gen-logo-pixels.mjs"
   },
   "dependencies": {
     "@langfuse/otel": "^5.7.0",

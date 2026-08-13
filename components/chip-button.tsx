@@ -1,6 +1,7 @@
 "use client";
 
-/** A 40×40 round chip on the floating-nav surface — used for ← and the theme. */
+/** A 44×44 round chip on the floating-nav surface — used for ← and the theme.
+    Matches the pill's height, so the bar reads as one row of equal weights. */
 export function ChipButton({
   label,
   onClick,
@@ -16,7 +17,7 @@ export function ChipButton({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className="nav-surface grid size-10 shrink-0 place-items-center rounded-full text-[var(--nav-muted)] transition-[color,transform] duration-150 ease-out-strong hover:text-[var(--nav-fg)] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nav-fg)]/25"
+      className="nav-surface grid size-11 shrink-0 place-items-center rounded-full text-[var(--nav-muted)] transition-[color,transform] duration-150 ease-out-strong hover:text-[var(--nav-fg)] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nav-fg)]/25"
     >
       {children}
     </button>

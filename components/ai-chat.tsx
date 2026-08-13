@@ -10,9 +10,11 @@ import {
 import { AnimatePresence, motion, MotionConfig } from "framer-motion";
 import Link from "next/link";
 import { useChat } from "@/components/chat-provider";
+import { LoadingState } from "@/components/loading-state";
 import { site } from "@/lib/site";
 import { publishedProjects } from "@/lib/projects";
 import { ASK_EVENT, type AskDetail } from "@/lib/ask";
+import { scrollBehavior } from "@/lib/motion";
 
 /* ────────────────────────────────────────────────────────────────────────
    Conversation model — an agent session of semantic activities.
@@ -68,11 +70,15 @@ type Segment = { kind: "text"; text: string } | { kind: "case"; slug: string };
 
 function parseSegments(text: string, streaming: boolean): Segment[] {
   let body = text;
+  let hidToken = false;
   // While tokens are still arriving, hide a half-typed "[[case:dev…" so the raw
   // token never flashes before its closing "]]" lands.
   if (streaming) {
     const open = body.lastIndexOf("[[");
-    if (open !== -1 && body.indexOf("]]", open) === -1) body = body.slice(0, open);
+    if (open !== -1 && body.indexOf("]]", open) === -1) {
+      body = body.slice(0, open);
+      hidToken = true;
+    }
   }
 
   const segments: Segment[] = [];
@@ -90,6 +96,22 @@ function parseSegments(text: string, streaming: boolean): Segment[] {
     last = idx + m[0].length;
   }
   push(body.slice(last));
+
+  // Words land whole. Tokens arrive mid-word, so while the stream is live the
+  // trailing partial word is held back until the whitespace that ends it
+  // arrives — otherwise a word would resolve out of blur and then keep growing
+  // under itself. Costs one word of lag; the caret sits where it will land.
+  // Not when a half-typed card token was just hidden, though: the text before
+  // it is already complete, and holding its last word back would blink a word
+  // off the screen for the frame or two the token takes to finish arriving.
+  if (streaming && !hidToken) {
+    const tail = segments[segments.length - 1];
+    if (tail?.kind === "text") {
+      tail.text = tail.text.replace(/\S+$/, "");
+      if (!tail.text) segments.pop();
+    }
+  }
+
   return segments;
 }
 
@@ -97,7 +119,8 @@ const stripTokens = (s: string) =>
   s.replace(CASE_TOKEN, "").replace(/\n{3,}/g, "\n\n").trim();
 
 /* ────────────────────────────────────────────────────────────────────────
-   Inline markdown.
+   Inline markdown, one word at a time.
+
    Pedro's answers come back as plain text but the model still reaches for
    `**emphasis**`, and rendering it raw leaves the asterisks on screen. This
    handles the three inline marks that actually show up — bold, italic and
@@ -105,35 +128,80 @@ const stripTokens = (s: string) =>
    a full parser would be a dependency for two characters. Unmatched marks are
    left as literal text, which is what you want mid-stream while the closing
    `**` hasn't arrived yet.
+
+   Every word then gets its own span so it can resolve out of blur as it lands.
+   The key is the word's offset in the segment, never its index in the list:
+   the text only ever grows at its end, so an offset is stable, and a word
+   already on screen is never remounted — and so never re-animates — when the
+   next token arrives. That also survives a mark completing mid-stream, where
+   `**bold` and `**bold**` share a start offset and just swap their contents.
    ──────────────────────────────────────────────────────────────────────── */
 
 const INLINE_MD = /(\*\*[^*\n]+\*\*|(?<![*\w])\*[^*\n]+\*(?!\w)|`[^`\n]+`)/g;
+// A word carries the whitespace that trails it, so line breaks ride along.
+const WORD = /\s*\S+\s*/g;
 
-function renderInline(text: string, key: string) {
-  return text.split(INLINE_MD).map((part, i) => {
-    const id = `${key}-${i}`;
-    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
-      return (
-        <strong key={id} className="font-medium text-foreground">
-          {part.slice(2, -2)}
-        </strong>
-      );
+function mark(raw: string): React.ReactNode {
+  if (raw.startsWith("**") && raw.endsWith("**") && raw.length > 4) {
+    return <strong className="font-medium text-foreground">{raw.slice(2, -2)}</strong>;
+  }
+  if (raw.startsWith("`") && raw.endsWith("`") && raw.length > 2) {
+    return (
+      <code className="rounded bg-foreground/[0.08] px-1 py-px font-mono text-[12px]">
+        {raw.slice(1, -1)}
+      </code>
+    );
+  }
+  if (raw.startsWith("*") && raw.endsWith("*") && raw.length > 2) {
+    return <em>{raw.slice(1, -1)}</em>;
+  }
+  return raw;
+}
+
+/* One word of an answer, resolving out of blur on mount. `will-change` is only
+   worth its cost while words are still arriving; once the answer has landed
+   the hint is dropped from every word in a single commit. */
+function Word({ live, children }: { live: boolean; children: React.ReactNode }) {
+  return (
+    <span
+      className={`animate-stream-in${live ? " [will-change:filter,opacity]" : ""}`}
+    >
+      {children}
+    </span>
+  );
+}
+
+function renderText(text: string, keyBase: string, live: boolean): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  const at = (offset: number, node: React.ReactNode) =>
+    nodes.push(
+      <Word key={`${keyBase}:${offset}`} live={live}>
+        {node}
+      </Word>,
+    );
+
+  const words = (from: number, to: number) => {
+    const run = text.slice(from, to);
+    if (!run) return;
+    let any = false;
+    for (const m of run.matchAll(WORD)) {
+      any = true;
+      at(from + (m.index ?? 0), m[0]);
     }
-    if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
-      return (
-        <code
-          key={id}
-          className="rounded bg-foreground/[0.08] px-1 py-px font-mono text-[12px]"
-        >
-          {part.slice(1, -1)}
-        </code>
-      );
-    }
-    if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
-      return <em key={id}>{part.slice(1, -1)}</em>;
-    }
-    return part;
-  });
+    // A run of pure whitespace matches nothing above — keep it verbatim so the
+    // blank line between two paragraphs isn't swallowed.
+    if (!any) at(from, run);
+  };
+
+  let last = 0;
+  for (const m of text.matchAll(INLINE_MD)) {
+    const start = m.index ?? 0;
+    words(last, start);
+    at(start, mark(m[0]));
+    last = start + m[0].length;
+  }
+  words(last, text.length);
+  return nodes;
 }
 
 function relativeTime(t: number): string {
@@ -207,6 +275,8 @@ export function AiChat() {
   );
   const lastType = current.activities[current.activities.length - 1]?.content.type;
   const thinking = busy && lastType === "prompt"; // between the prompt and the first token
+  // A session nobody has said anything in yet: welcome block + starter chips.
+  const blank = current.activities.length === 0 && !busy;
 
   function patch(id: string, fn: (s: Session) => Session) {
     setStore((st) => ({
@@ -234,7 +304,7 @@ export function AiChat() {
   useEffect(() => {
     if (view !== "chat") return;
     const el = scrollRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: scrollBehavior() });
   }, [current.activities, busy, view, open, suggest.items]);
 
   // No dep array: runs after every commit so the ref tracks the latest closure.
@@ -497,7 +567,7 @@ export function AiChat() {
         aria-label="Ask Pedro"
         aria-hidden={!open}
         inert={!open}
-        className={`fixed inset-1.5 z-50 ml-auto flex max-w-[26rem] flex-col overflow-hidden rounded-2xl bg-layer font-sans shadow-[0_1px_2px_rgba(17,17,24,0.04),0_8px_24px_rgba(17,17,24,0.1),0_18px_44px_rgba(17,17,24,0.1)] ring-1 ring-border transition-[opacity,transform] duration-500 ease-drawer lg:visible lg:inset-y-0 lg:left-auto lg:right-0 lg:z-0 lg:w-96 lg:max-w-none lg:translate-y-0 lg:rounded-none lg:opacity-100 lg:shadow-none lg:ring-0 dark:shadow-[0_2px_8px_rgba(0,0,0,0.4),0_12px_32px_rgba(0,0,0,0.55)] ${
+        className={`fixed inset-1.5 z-50 ml-auto flex max-w-[26rem] flex-col overflow-hidden rounded-2xl bg-layer font-sans shadow-[0_1px_2px_rgba(17,17,24,0.04),0_8px_24px_rgba(17,17,24,0.1),0_18px_44px_rgba(17,17,24,0.1)] ring-1 ring-stroke transition-[opacity,transform] duration-500 ease-drawer lg:visible lg:inset-y-0 lg:left-auto lg:right-0 lg:z-0 lg:w-96 lg:max-w-none lg:translate-y-0 lg:rounded-none lg:opacity-100 lg:shadow-none lg:ring-0 dark:shadow-[0_2px_8px_rgba(0,0,0,0.4),0_12px_32px_rgba(0,0,0,0.55)] ${
           open
             ? "lg:translate-x-0"
             : // Undocked it fades out of the way; docked it stays put but rests
@@ -507,7 +577,7 @@ export function AiChat() {
         }`}
       >
         {/* header */}
-        <header className="flex h-12 shrink-0 items-center gap-1 border-b border-foreground/10 pl-4 pr-2.5">
+        <header className="flex h-11 shrink-0 items-center gap-1 border-b border-stroke pl-3.5 pr-2">
           <span className="flex-1 truncate text-[13px] font-medium text-foreground">
             {view === "history" ? "History" : current.title}
           </span>
@@ -564,10 +634,10 @@ export function AiChat() {
         ) : (
           <div
             ref={scrollRef}
-            className="scrollbar-thin flex flex-1 flex-col gap-5 overflow-y-auto px-4 py-5"
+            className="scrollbar-thin flex flex-1 flex-col gap-5 overflow-y-auto p-3.5"
           >
-            {current.activities.length === 0 && !busy ? (
-              <EmptyState onPick={(q) => send(q)} />
+            {blank ? (
+              <EmptyState />
             ) : (
               <>
                 {current.activities.map((a) => (
@@ -587,8 +657,15 @@ export function AiChat() {
 
         {/* composer */}
         {view === "chat" && (
-          <div className="shrink-0 px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] lg:pb-4">
-            <div className="rounded-[12px] border border-foreground/[0.12] bg-field px-3.5 py-3 transition-colors focus-within:border-foreground/25">
+          <div className="relative shrink-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:pb-3">
+            {/* Starters sit above the composer rather than under the welcome
+                block, so the first tap is next to the thing it types into.
+                Overlaid on the scroll area rather than stacked above it, for
+                two reasons: the rail runs off the panel's right edge, which an
+                `overflow-y` ancestor would clip, and taking no flow space
+                leaves the welcome block centred in the whole body. */}
+            {blank && <Starters onPick={(q) => send(q)} />}
+            <div className="mx-3 rounded-[11px] border border-stroke bg-field px-3 py-2.5 transition-colors focus-within:border-foreground/25">
               <textarea
                 ref={taRef}
                 rows={1}
@@ -611,8 +688,8 @@ export function AiChat() {
                   aria-label="Send"
                   className={`grid h-7 w-7 place-items-center rounded-full transition-[background-color,color,scale] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 ${
                     input.trim() && !busy
-                      ? "bg-accent text-background hover:opacity-90"
-                      : "bg-foreground/[0.08] text-muted"
+                      ? "bg-accent text-accent-fg hover:opacity-90"
+                      : "bg-hover text-muted"
                   }`}
                 >
                   <ArrowUp />
@@ -665,7 +742,7 @@ function ActivityRow({ content }: { content: Content }) {
         {segments.map((seg, i) =>
           seg.kind === "text" ? (
             <span key={i} className="whitespace-pre-wrap">
-              {renderInline(seg.text, String(i))}
+              {renderText(seg.text, String(i), !!content.streaming)}
             </span>
           ) : (
             <CaseCard key={i} slug={seg.slug} />
@@ -704,7 +781,7 @@ function CaseCard({ slug }: { slug: string }) {
     >
       <Link
         href={`/${project.slug}`}
-        className="group/card flex items-center gap-3 rounded-[12px] border border-foreground/[0.12] px-3.5 py-3 transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+        className="group/card flex items-center gap-3 rounded-[12px] border border-stroke px-3.5 py-3 transition-colors hover:bg-foreground/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
       >
         <span className="min-w-0 flex-1">
           <span className="block text-[10.5px] font-semibold uppercase tracking-wide text-muted">
@@ -733,43 +810,63 @@ function ThinkingRow() {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ type: "spring", stiffness: 420, damping: 32 }}
-      className="flex items-center gap-1.5"
     >
-      {[0, 1, 2].map((i) => (
-        <motion.span
-          key={i}
-          className="h-1.5 w-1.5 rounded-full bg-muted"
-          animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
-          transition={{ duration: 1, repeat: Infinity, ease: "easeInOut", delay: i * 0.15 }}
-        />
-      ))}
+      <LoadingState label="Thinking" />
     </motion.div>
   );
 }
 
-function EmptyState({ onPick }: { onPick: (q: string) => void }) {
+function EmptyState() {
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.3 }}
-      className="flex flex-1 flex-col items-center justify-center gap-5 text-center"
+      className="flex flex-1 flex-col items-center justify-center gap-4 text-center"
     >
       <Logo className="h-10 w-10 rounded-[10px] shadow-sm" />
-      <p className="max-w-[15rem] text-pretty text-[13px] leading-relaxed text-muted">
-        Ask me about my work, design approach, and experience — it&apos;s me, Pedro.
-      </p>
-      <div className="flex flex-col items-center gap-2">
+      <div className="flex flex-col items-center gap-3">
+        <p className="text-[16px] font-medium leading-snug text-foreground">
+          Welcome to my Agent
+        </p>
+        <p className="w-60 text-pretty text-[13px] leading-relaxed text-muted">
+          Ask me about my work, design approach, and experience
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
+/* Starter questions as one horizontal rail. It runs off the panel's right edge
+   under a short fade — the cut-off third chip is the affordance that says the
+   row scrolls, so the row is deliberately wider than the panel.
+
+   Hover lifts the whole chip — edge, fill and label at once. A fill on its own
+   can't carry it here: --hover and --layer are at most a step apart, so the
+   chip has to gain an edge to read as live. */
+function Starters({ onPick }: { onPick: (q: string) => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+      className="absolute inset-x-0 bottom-full mb-3.5"
+    >
+      <div className="scrollbar-none flex gap-[9px] overflow-x-auto px-3.5">
         {SUGGESTIONS.map((q) => (
           <button
             key={q}
             onClick={() => onPick(q)}
-            className="rounded-full border border-foreground/[0.12] px-3 py-1.5 text-[12px] leading-[18px] text-foreground/80 transition-colors hover:bg-foreground/[0.06] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+            className="shrink-0 whitespace-nowrap rounded-full border border-stroke px-3 py-1.5 text-[12px] leading-[18px] text-foreground/80 transition-[background-color,border-color,color,scale] duration-150 ease-out-strong hover:border-foreground/25 hover:bg-foreground/[0.05] hover:text-foreground active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
           >
             {q}
           </button>
         ))}
       </div>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 right-0 w-[9px] bg-gradient-to-l from-layer to-transparent"
+      />
     </motion.div>
   );
 }

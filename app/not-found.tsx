@@ -15,7 +15,7 @@ export default function NotFound() {
         ← Back home
       </Link>
 
-      <SiteNav items={[{ label: "Ask me anything", ask: true }]} back="/" />
+      <SiteNav items={[{ label: "Ask anything", ask: true }]} back="/" />
     </main>
   );
 }
