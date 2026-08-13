@@ -14,7 +14,7 @@ const REPO_URL = `https://github.com/${REPO}`;
 
 const NAV = [
   { label: "About", target: "about" },
-  { label: "Ask me anything", ask: true as const },
+  { label: "Ask anything", ask: true as const },
 ];
 
 const skills = [
@@ -41,7 +41,10 @@ export default function SkillsPage() {
         </div>
       </header>
 
-      <section className="animate-rise mt-14" style={{ animationDelay: "80ms" }}>
+      <section
+        className="animate-rise mt-14"
+        style={{ "--rise-delay": "80ms" } as React.CSSProperties}
+      >
         <h2 className="mb-2 text-sm font-medium text-muted">Install everything</h2>
         <CopyButton text={`npx skills add ${REPO}`} />
         <p className="mt-2 text-sm leading-relaxed text-muted">
@@ -59,7 +62,10 @@ export default function SkillsPage() {
         </p>
       </section>
 
-      <section className="animate-rise mt-10" style={{ animationDelay: "120ms" }}>
+      <section
+        className="animate-rise mt-10"
+        style={{ "--rise-delay": "120ms" } as React.CSSProperties}
+      >
         <h2 className="mb-3 text-sm font-medium text-muted">
           Or install one at a time
         </h2>
@@ -93,7 +99,7 @@ export default function SkillsPage() {
 
       <footer
         className="animate-rise mt-auto flex flex-wrap items-center gap-x-5 gap-y-2 pt-32 text-sm text-muted sm:pt-40"
-        style={{ animationDelay: "200ms" }}
+        style={{ "--rise-delay": "200ms" } as React.CSSProperties}
       >
         <FooterLink href={REPO_URL}>GitHub</FooterLink>
         <FooterLink href="https://skills.sh">skills.sh</FooterLink>

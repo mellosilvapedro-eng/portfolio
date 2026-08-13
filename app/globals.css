@@ -8,15 +8,28 @@
   --muted: #8a8a8a;
   --border: #ececec;
   --hover: #f2f2f2;
-  --accent: #1a1a1a;
+  /* The one filled control on the site (the composer's send button). It carries
+     its own pair rather than borrowing --foreground/--background, because those
+     two are the extremes of the page and a chip painted with them lands on pure
+     ink or pure paper. Both sides stay a deliberate step inside: neutral-800
+     face, neutral-50 glyph. Nothing here is ever #000 or #fff. */
+  --accent: #262626;
+  --accent-fg: #fafafa;
 
   /* The layer that sits *behind* the page — the assistant rail is painted on
      it, and the content shell floats above. Held to the same ~10-point step
      the dark ground uses (#0a0a0a → #151515), so the separation reads without
      ever becoming a colour of its own. */
   --layer: #f2f2f2;
-  /* Inset field on the layer (the chat composer). */
-  --field: #ffffff;
+  /* Inset field on the layer (the chat composer). A hair under paper-white so
+     it still lifts off --layer (#f2f2f2) without being the one pure value on
+     the page. */
+  --field: #fdfdfd;
+  /* Hairlines drawn on the layer. --border is tuned against --background
+     (#fcfcfc); on the darker --layer that same value all but disappears, so
+     the rail carries its own stroke — a wider step in light, where a hairline
+     needs more absolute separation to register than it does on a dark ground. */
+  --stroke: #dcdcdc;
 
   /* Floating nav pill. Its own scale: it's a translucent chip over content, so
      it can't reuse the page's surface/border tokens. */
@@ -44,13 +57,20 @@
   --muted: #7d7d7d;
   --border: #1f1f1f;
   --hover: #141414;
-  --accent: #ededed;
+  /* neutral-300, not the near-white --foreground: at 28px on a #111 field the
+     brightest value on the page reads as a pure white disc. A step down still
+     leaves it the brightest thing in the panel — it just stops shouting. */
+  --accent: #d4d4d4;
+  --accent-fg: #141414;
 
   --layer: #151515;
   --field: #111111;
+  --stroke: #1f1f1f;
 
   --nav-bg: rgba(24, 24, 24, 0.75);
-  --nav-fg: #ffffff;
+  /* A touch brighter than --foreground so it holds on the translucent chip,
+     but not pure white — text on a dark ground vibrates at #fff. */
+  --nav-fg: #f5f5f5;
   --nav-muted: #bbbbbb;
   --nav-active: rgba(255, 255, 255, 0.08);
   --nav-hover: rgba(255, 255, 255, 0.05);
@@ -70,8 +90,10 @@
   --color-border: var(--border);
   --color-hover: var(--hover);
   --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
   --color-layer: var(--layer);
   --color-field: var(--field);
+  --color-stroke: var(--stroke);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
   /* Strong easing curves (from Emil Kowalski's design eng notes) */
@@ -81,9 +103,27 @@
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-html {
-  scroll-behavior: smooth;
-}
+/* No `scroll-behavior: smooth` on <html>, on purpose.
+
+   It used to be here, and Next 15 and earlier quietly protected the site from
+   it: on every route change the router set the property to `auto`, jumped to
+   the top, then put it back. Next 16 stopped doing that (it costs a style
+   write at the start of every navigation), so the declaration started doing
+   what it always literally said — animating the router's scroll reset. Opening
+   a project meant watching the old page scroll all the way up before the new
+   one appeared, which reads as the site being slow to respond to a click.
+
+   The attribute `data-scroll-behavior="smooth"` on <html> would buy the old
+   override back. Not worth it: nothing here needs the global property. The two
+   smooth scrolls the site actually wants — the section nav and the chat
+   pinning to its newest message — pass `behavior: "smooth"` at the call site,
+   which takes precedence over this property anyway. So smoothness now exists
+   exactly where it was asked for, and a route change lands at the top
+   instantly with the page's own `.animate-rise` doing the entrance.
+
+   Two consequences of stating it at the call site: reduced motion has to be
+   honoured there too (lib/motion), and a future `<a href="#section">` gets an
+   instant jump unless it goes through the same helper. */
 
 /* The canvas is the layer the content shell floats on — so when the shell
    gives up room to the assistant, its rounded edge reveals something. The
@@ -118,6 +158,14 @@ body {
 .scrollbar-thin::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 3px;
+}
+
+/* Scrolls, but shows nothing for it — the chip rail's own fade is the cue. */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 /* Gradient border — a 1px gradient ring that follows the element's radius.
@@ -167,6 +215,46 @@ body {
   box-shadow: var(--nav-shadow);
 }
 
+/* The window's two edges, ramped into the ground — see components/site-shell.
+   Each one sits under a pinned control (the theme toggle up top, the floating
+   bar below), so copy scrolling past dissolves instead of colliding with it.
+
+   Painted as --background under a mask rather than an rgba ramp: the ground is
+   one token per theme, and the mask's stops let the ramp ease. A straight linear
+   ramp leaves a visible seam where it meets the page, because alpha and
+   perceived lightness don't move together.
+
+   Same stops both ends, just pointed the other way, so the page reads as one
+   sheet lit from the middle. Only the heights differ, and they're set on the
+   elements rather than here — the two controls need different amounts of ground
+   cleared. See components/site-shell for why. */
+.top-fade,
+.bottom-fade {
+  background: var(--background);
+}
+
+.bottom-fade {
+  mask-image: linear-gradient(
+    to top,
+    #000 0%,
+    rgb(0 0 0 / 0.86) 24%,
+    rgb(0 0 0 / 0.5) 52%,
+    rgb(0 0 0 / 0.16) 76%,
+    transparent 100%
+  );
+}
+
+.top-fade {
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0%,
+    rgb(0 0 0 / 0.86) 24%,
+    rgb(0 0 0 / 0.5) 52%,
+    rgb(0 0 0 / 0.16) 76%,
+    transparent 100%
+  );
+}
+
 /* Inline links. The design underlines them in their own colour
    (`decoration-from-font`), so the recipe is the same everywhere and only the
    hover target changes per context. */
@@ -177,6 +265,228 @@ body {
   transition:
     color 150ms var(--ease-out-strong),
     opacity 150ms var(--ease-out-strong);
+}
+
+/* ── Assistant answer loop ────────────────────────────────────────────────
+   Two halves of the same moment: the pixel-grid loader holds the gap before
+   the first token, then words resolve out of blur as they land. */
+
+/* A grid cell lights as the wavefront passes it. The dim floor is set inline
+   on the cell, so killing the animation leaves the grid frozen on it. */
+@keyframes pixel-on {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Longhands, not the shorthand: the cell supplies its own duration and delay
+   inline, and a shorthand here would reset both. The chat's loader and the nav's
+   button run the same wave, unconditionally, in both places. */
+@utility animate-pixel {
+  animation-name: pixel-on;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+/* A highlight sweeps the loader's label left to right. Standard
+   `background-clip` only — Lightning CSS adds the prefix (see .nav-surface). */
+@keyframes shimmer-text {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+/* Paint only. The sweep itself is `animate-shimmer`, kept separate so the nav's
+   button can hold the label unlit until it's hovered — otherwise a clipped,
+   invisible label would repaint every frame of every page. */
+.shimmer-text {
+  background-image: linear-gradient(
+    90deg,
+    var(--muted) 35%,
+    var(--foreground) 50%,
+    var(--muted) 65%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  color: transparent;
+}
+
+@utility animate-shimmer {
+  animation: shimmer-text 1.4s linear infinite;
+}
+
+/* Each streamed word resolves out of blur instead of snapping in, so a fast
+   token stream reads as writing rather than as text being pasted in. */
+/* `filter: none`, not `blur(0)` — Lightning CSS minifies the latter to the
+   argument-less `blur()`, and `none` interpolates to the same place. */
+@keyframes stream-in {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+  }
+}
+
+.animate-stream-in {
+  animation: stream-in 420ms cubic-bezier(0.22, 0.61, 0.25, 1) both;
+}
+
+/* ── The opening ──────────────────────────────────────────────────────────
+   The mark fades up on the page's ground, the loader's wave plays over it, then
+   it hands off to the content. See components/splash-screen for the timeline and
+   for how one line of script scopes all of this to the home page's own entry.
+
+   Everything hangs off `data-splash="play"` on <html>. Without it — every other
+   route, and every client-side navigation back to home — the page is just the
+   site: no cover, no content offset, and 314 rects that never get laid out. */
+
+.splash {
+  display: none;
+}
+
+html[data-splash="play"] .splash {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  /* --background, not --layer: this is the shell's ground, and the shell is
+     what the cover has to become. */
+  background: var(--background);
+  /* Starts once the mark has finished fading out — the mark leaves, then the
+     ground does. `ease`, not `ease-out-strong`: a cover lifting is the one thing
+     here that shouldn't be front-loaded, or the page snaps in rather than
+     arriving. */
+  animation: splash-out 320ms ease 2000ms forwards;
+}
+
+/* `visibility` and `pointer-events` are discrete — they'd flip at the midpoint
+   if only one end declared them, so both ends do. Clicks are released the
+   moment the cover starts leaving (the content underneath is already rising by
+   then); `visibility` waits until the very last frame, which is what takes the
+   cover out of the a11y tree and out of hit-testing for good. */
+@keyframes splash-out {
+  from {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: none;
+  }
+  99% {
+    visibility: visible;
+    pointer-events: none;
+  }
+  to {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+/* Brings the mark on and takes it off, and nothing else — opacity at both ends.
+   The wave over the cells is the motion here; a scale or a blur on the wrapper
+   would be a second gesture competing with it, and it would be the one arguing
+   with the logo's shape instead of lighting it.
+
+   `mark-out` is `forwards` only: with `both`, its backwards fill would apply
+   from time zero and win over `mark-in` for the whole hold, since later entries
+   in the list take the property. */
+/* `ease`, not `ease-out-strong`, and this is the whole reason the fade reads at
+   all. `ease-out-strong` is `cubic-bezier(0.23, 1, 0.32, 1)` — it's ~85% done in
+   the first third of its duration, which is exactly right for a control that has
+   to feel instant and exactly wrong for a fade you're supposed to *watch*. At
+   360ms on that curve the mark looked like it snapped in. Same fade on `ease`,
+   twice as long, and it's a fade. */
+html[data-splash="play"] .splash-mark {
+  animation:
+    mark-in 720ms ease forwards,
+    mark-out 420ms ease 1600ms forwards;
+}
+
+@keyframes mark-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes mark-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* The loader's wave, on the real mark. Cells brighten and fall back to their own
+   grey on a loop, scattered off a chevron drift so the field reads as pixels
+   switching on and off rather than as a bar sweeping across — `pixel-on` with
+   the mark's texture as the floor instead of a flat 0.15. The mark itself never
+   assembles; it's simply there, and this plays over it.
+
+   The peak is a *lift* from the cell's own value, not a jump to full. Sending
+   every cell to `fill-opacity: 1` levels the lit cells into a solid patch and
+   erases the dither exactly where the eye is looking; adding a constant keeps
+   the light and dark cells in their proper relationship, so the wave reads as
+   the existing pixels brightening rather than as a glare crossing. `min()`
+   because the bright cells would otherwise interpolate past 1 — the renderer
+   clamps that, but a curve reaching the clamp early is a stall, not a hold.
+
+   `fill-opacity`, not `opacity`, because the lift has to go *above* the cell's
+   resting value and `opacity` can only ever scale it down. Paint-only, and fine
+   here: the whole field is 112px square, so there's no layout in the loop and
+   nothing to composite.
+
+   One cycle length for every cell, and that matters: the 420ms here against the
+   22ms lattice step in components/logo-mark is what puts two fronts on the disc
+   at once. Giving cells their own durations was tried and it's a trap — they
+   drift out of phase as the wave repeats, and within a second there are no fronts
+   left to see, just a field of pixels blinking on their own schedules. Scatter
+   belongs in the delay, where it fuzzes the edge of a band that still exists.
+
+   Longhands, not the shorthand — the same reason `animate-pixel` above uses them.
+   Each cell supplies its own delay inline, and a shorthand here would reset it. */
+.logo-cell {
+  animation-name: pixel-highlight;
+  animation-duration: 420ms;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+/* Asymmetric on purpose, and this shape is doing more work than the amplitude is.
+   A cell snaps up over the first fifth of its cycle, eases back down by the
+   middle, and then simply rests until its next turn.
+
+   The obvious `0%,100% floor / 50% peak` keeps every cell above half brightness
+   for half its cycle, which — with two fronts crossing — means half the disc is
+   lit at any moment. The mark goes pale and the dither, the one thing that makes
+   it this mark, washes out. Resting for the back half of the cycle drops that to
+   roughly a third, so most cells show their real grey most of the time: the logo
+   stays the logo, the fronts get dark ground to travel over, and the lit cells
+   read as individual pixels catching light rather than as a bright smear. */
+@keyframes pixel-highlight {
+  0% {
+    fill-opacity: var(--cell-ink);
+  }
+  22% {
+    fill-opacity: min(1, calc(var(--cell-ink) + 0.34));
+  }
+  55%,
+  100% {
+    fill-opacity: var(--cell-ink);
+  }
 }
 
 /* Staggered entrance for the home content */
@@ -191,18 +501,107 @@ body {
   }
 }
 
+/* How long the content waits for the cover — and it takes *two* conditions to be
+   anything but zero, because getting this wrong is invisible on the page that has
+   the cover and catastrophic on every other one.
+
+   `[data-splash="play"]` is the time bound: the attribute exists only while the
+   opening is actually running (the gate script clears it when the cover finishes
+   leaving). `.splash-page` is the place bound: only the home page's own <main>
+   carries it.
+
+   Either alone leaks. On the attribute alone, navigating from home to /skills
+   inherits a 1.9s offset and that page sits at `opacity: 0` for two seconds
+   waiting for a cover that was never rendered — a blank screen, which is exactly
+   the bug this pair of selectors exists to prevent. On the class alone, pushing
+   back to home replays the whole opening.
+
+   Held here rather than baked into each page, so pages carry no splash timing of
+   their own — they just add their own stagger on top of whatever this is. */
+:root {
+  --splash-hold: 0ms;
+}
+
+html[data-splash="play"] .splash-page {
+  /* Set so the content's own stagger finishes *before* the cover's animation
+     ends at 2320ms: 1440 + 200ms of stagger + a 600ms rise lands at 2240ms.
+
+     That ordering is load-bearing. Clearing `data-splash` re-computes this
+     delay, and re-computing the delay of a *running* animation jumps its local
+     time — an element mid-rise would snap to its end state instead of finishing.
+     Everything has to be done animating before the attribute goes. */
+  --splash-hold: 1440ms;
+}
+
 .animate-rise {
   opacity: 0;
   animation: rise 600ms var(--ease-out-strong) forwards;
+  /* Must stay *after* the shorthand: `animation` resets `animation-delay`, so
+     declaring this first would throw the offset away. Sections set their own
+     `--rise-delay` inline; the splash offset is added to it rather than
+     replacing it, which is why the stagger can't live in `animation-delay`
+     directly. */
+  animation-delay: calc(var(--splash-hold) + var(--rise-delay, 0ms));
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
-  }
+  /* Scrolling isn't handled here — see the note at the top of the file. A
+     `scroll-behavior: auto` in this block would be dead code: both smooth
+     scrolls in the site pass `behavior` explicitly, and an explicit argument
+     beats the property. lib/motion checks this same query in JS so the two
+     call sites actually answer to it. */
   .animate-rise {
     animation: none;
     opacity: 1;
     transform: none;
   }
+  /* The grid freezes on its dim state; the label drops the sweep and just
+     reads as text. The loader's elapsed timer still ticks.
+     The grid is neutralised by redefining its keyframes rather than by
+     switching the class off, so it freezes wherever the wave is applied
+     without this having to know where that is. */
+  @keyframes pixel-on {
+    0%,
+    100% {
+      opacity: 0.15;
+    }
+  }
+  .shimmer-text {
+    background-image: none;
+    color: var(--muted);
+  }
+  /* The nav runs on its own colour scale, and --muted is a page value that goes
+     muddy on the translucent chip. Needs to be a descendant selector rather than
+     a utility on the element: .shimmer-text is unlayered, so it outranks
+     anything Tailwind emits into @layer utilities. */
+  .nav-surface .shimmer-text {
+    color: var(--nav-fg);
+  }
+  .animate-stream-in {
+    animation: none;
+  }
+
+  /* The opening keeps its fades and loses the wave — which is the easy call
+     here, because the fades were never the motion. With the cell animation off,
+     every cell falls back to the `fill-opacity` attribute it was rendered with,
+     so the mark is simply the logo, sitting still.
+
+     Shorter, too, and the same keyframes at different timings. The exposure
+     exists to let the wave play over the mark; there's no wave left to watch, so
+     the whole thing is done at 780ms instead of 1360ms. */
+  .logo-cell {
+    animation: none;
+  }
+
+  html[data-splash="play"] .splash-mark {
+    animation:
+      mark-in 320ms ease forwards,
+      mark-out 260ms ease 620ms forwards;
+  }
+
+  html[data-splash="play"] .splash {
+    animation: splash-out 280ms ease 860ms forwards;
+  }
 }
+
+

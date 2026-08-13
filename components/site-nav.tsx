@@ -2,21 +2,31 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AskButton } from "@/components/ask-button";
 import { useChat } from "@/components/chat-provider";
 import { ChipButton } from "@/components/chip-button";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { askPedro } from "@/lib/ask";
+import { scrollBehavior } from "@/lib/motion";
 
 /* The universal menu: one floating bar that follows the page it's on.
-   Home gets About / Work / Ask me anything; a case study swaps in a back
-   button, Screens, and a project-scoped ask. The ask item drops out while the
-   assistant is open — it's already answering. */
+   Home gets About / Work; a case study swaps in a back button and Screens.
+
+   The pill holds section links and nothing else. The assistant used to sit in
+   there with them, which framed it as a third place to scroll to; it now stands
+   beside the pill as its own button (components/ask-button). It drops out
+   entirely while the assistant is open — it's already answering.
+
+   The theme control used to end this row; it has moved to the corner of the
+   window (components/site-shell), which is why the bar is just sections and the
+   assistant now. */
 
 export type NavItem = {
   label: string;
   /** id of the section this item scrolls to. */
   target?: string;
-  /** Opens the assistant. A string is sent as the opening prompt. */
+  /** Opens the assistant. A string is sent as the opening prompt. Items marked
+      this way leave the pill and become the trailing assistant button — their
+      `label` is the copy it opens to say, so it changes with what the page can
+      be asked about. */
   ask?: string | true;
 };
 
@@ -29,14 +39,14 @@ export function SiteNav({
   back?: string;
 }) {
   const router = useRouter();
-  const { open, setOpen } = useChat();
-  const active = useScrollSpy(items.map((i) => i.target));
-
-  const visible = items.filter((item) => !(open && item.ask));
+  const { open } = useChat();
+  const links = items.filter((item) => !item.ask);
+  const ask = items.find((item) => item.ask);
+  const active = useScrollSpy(links.map((i) => i.target));
 
   return (
     <div
-      className={`fixed inset-x-0 bottom-6 z-40 flex justify-center gap-2.5 px-4 transition-[right] duration-500 ease-drawer ${
+      className={`fixed inset-x-0 bottom-6 z-40 flex justify-center gap-[11px] px-4 transition-[right] duration-500 ease-drawer ${
         open ? "lg:right-96 max-lg:hidden" : ""
       }`}
     >
@@ -46,42 +56,39 @@ export function SiteNav({
         </ChipButton>
       ) : null}
 
-      <nav
-        aria-label="Page sections"
-        className="nav-surface flex h-10 items-center gap-1 rounded-full px-1.5 py-1"
-      >
-        {visible.map((item) => (
-          <button
-            key={item.label}
-            type="button"
-            onClick={() => {
-              if (item.ask) {
-                if (typeof item.ask === "string") askPedro(item.ask);
-                else setOpen(true);
-                return;
+      {links.length > 0 ? (
+        <nav
+          aria-label="Page sections"
+          className="nav-surface flex h-11 items-center gap-1 rounded-full px-1.5"
+        >
+          {links.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              onClick={() => item.target && scrollToSection(item.target)}
+              aria-current={
+                item.target && item.target === active ? "true" : undefined
               }
-              if (item.target) scrollToSection(item.target);
-            }}
-            aria-current={
-              item.target && item.target === active ? "true" : undefined
-            }
-            className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[13px] font-medium leading-[19.5px] transition-[color,background-color,transform] duration-150 ease-out-strong active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nav-fg)]/25 sm:px-4 ${
-              item.ask
-                ? // The assistant is the one action in the bar: it carries the
-                  // gradient edge, and its label sits at full ink rather than
-                  // the muted grey the section links use.
-                  "gradient-border text-[var(--nav-fg)]"
-                : item.target && item.target === active
+              className={`whitespace-nowrap rounded-full px-4 py-1.5 text-[14px] font-medium leading-[21px] transition-[color,background-color,transform] duration-150 ease-out-strong active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nav-fg)]/25 ${
+                item.target && item.target === active
                   ? "bg-[var(--nav-active)] text-[var(--nav-fg)]"
                   : "text-[var(--nav-muted)] hover:bg-[var(--nav-hover)] hover:text-[var(--nav-fg)]"
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </nav>
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      ) : null}
 
-      <ThemeToggle />
+      {/* Last on purpose: it's the one thing here that grows, so it opens
+          rightward into empty space rather than over a chip. */}
+      {ask && !open ? (
+        <AskButton
+          label={ask.label}
+          prompt={typeof ask.ask === "string" ? ask.ask : undefined}
+        />
+      ) : null}
     </div>
   );
 }
@@ -108,7 +115,7 @@ function BackIcon() {
 function scrollToSection(id: string) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.scrollIntoView({ behavior: "smooth", block: "start" });
+  el.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
 }
 
 /**
