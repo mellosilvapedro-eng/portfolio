@@ -1,5 +1,6 @@
 "use client";
 
+import type { AnimationProps } from "@/lib/animations";
 import { JusbrasilLogo, JusbrasilMark } from "./brand-logo";
 import { useLoopStep, usePrefersReducedMotion } from "./use-loop-step";
 
@@ -10,16 +11,17 @@ const STEPS = [700, 4200];
  * change, softening enforcement into a clear, conversion-oriented message.
  * Faithful to the real screen (exact colours). Pops in and loops.
  */
-export function DeviceLastSwitch() {
+export function DeviceLastSwitch({ immediate }: AnimationProps) {
   const reduce = usePrefersReducedMotion();
-  const step = useLoopStep(STEPS, !reduce, reduce ? 1 : 0);
+  // Step 1 is where the card is on screen; step 0 is the loop's out-frame.
+  const step = useLoopStep(STEPS, !reduce, reduce ? 1 : 0, immediate ? 1 : 0);
   const shown = step === 1;
 
   return (
     <div
       role="img"
       aria-label="Device control warning: this is your last device switch this month."
-      className="relative flex h-full w-full items-center justify-center overflow-hidden p-6 sm:p-8"
+      className="relative flex h-full w-full items-center justify-center p-6 sm:p-8"
     >
       <div
         className={`relative w-full max-w-[360px] rounded-2xl border border-[#edf0f4] bg-white p-5 shadow-[0_18px_44px_-16px_rgba(15,23,42,0.28)] transition-all duration-500 ease-out-strong sm:p-6 ${
