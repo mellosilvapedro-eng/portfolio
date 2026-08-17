@@ -125,7 +125,7 @@ export const projects: Project[] = [
   },
   {
     slug: "device-control",
-    title: "Protecting revenue and driving 20% growth with device control",
+    title: "Protecting revenue driving 20% growth",
     headline:
       "Control that converts: how device management protected Jusbrasil's revenue and boosted profits by ~20%",
     company: "Jusbrasil",

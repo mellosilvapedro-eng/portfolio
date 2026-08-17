@@ -12,9 +12,11 @@ export const site = {
     "Today, I work on the Growth team at Factorial. I design experiences that help businesses discover value, adopt products, and grow.",
     "Previously, I worked on the Growth Design team at Jusbrasil.",
   ],
-  /** Career history, shown between the intro and selected work.
-   *  `url` turns the company name into a link — Carminga and Wine have none
-   *  yet, so they render as plain text. */
+  /** Career history. Drives the home page's Experience & Work timeline, where
+   *  each job also carries the published case studies whose `company` matches
+   *  this `company` — so the string has to stay spelled the same in both files
+   *  (see lib/projects and components/career-timeline).
+   *  `url` turns the company name into a link. */
   experience: [
     {
       period: "2026 — Now",
@@ -38,7 +40,7 @@ export const site = {
       company: "Carminga",
       url: "https://carminga.com/",
       description:
-        "Solo designer for a German car subscription service, I improved user mobility by refining interfaces and digital experiences.",
+        "Solo product designer for a German car subscription startup",
     },
     {
       period: "2020 — 2021",
@@ -55,7 +57,7 @@ export const site = {
     url?: string;
     description: string;
   }[],
-  /** Side projects and explorations, shown below selected work. */
+  /** Side projects and explorations, shown below the timeline. */
   experiments: [
     {
       name: "Skills",

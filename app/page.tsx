@@ -1,14 +1,17 @@
-import { ExperienceList } from "@/components/experience-list";
+import { CareerTimeline } from "@/components/career-timeline";
 import { ExperimentList } from "@/components/experiment-list";
-import { ProjectList } from "@/components/project-list";
 import { SiteNav } from "@/components/site-nav";
 import { SplashScreen } from "@/components/splash-screen";
-import { publishedProjects } from "@/lib/projects";
 import { site } from "@/lib/site";
 
+/* Two stops, as the design has it: the top, and the end. "Work" used to be the
+   second one, back when work was its own section — now that it's merged into the
+   timeline the page reads About → the career → Experiments, and the timeline is
+   simply what you scroll through between the two. The `work` id stays on it for
+   deep links. */
 const NAV = [
   { label: "About", target: "about" },
-  { label: "Work", target: "work" },
+  { label: "Experiments", target: "experiments" },
   { label: "Ask anything", ask: true as const },
 ];
 
@@ -55,26 +58,23 @@ function HomeContent() {
         </div>
       </header>
 
-      <section
-        id="experience"
-        className="animate-rise mt-16 scroll-mt-24"
-        style={{ "--rise-delay": "60ms" } as React.CSSProperties}
-      >
-        <h2 className="mb-6 text-sm font-medium text-muted">Experience</h2>
-        <ExperienceList />
-      </section>
-
+      {/* One section, not two. Career history and the case studies were separate
+          lists reading off the same companies; each case now hangs off the job
+          it came out of. */}
       <section
         id="work"
         className="animate-rise mt-16 scroll-mt-24"
-        style={{ "--rise-delay": "100ms" } as React.CSSProperties}
+        style={{ "--rise-delay": "60ms" } as React.CSSProperties}
       >
-        <h2 className="mb-2 text-sm font-medium text-muted">Selected work</h2>
-        <ProjectList projects={publishedProjects} />
+        <h2 className="mb-6 text-sm font-medium text-muted">
+          Experience & Work
+        </h2>
+        <CareerTimeline />
       </section>
 
       <section
-        className="animate-rise mt-16"
+        id="experiments"
+        className="animate-rise mt-16 scroll-mt-24"
         style={{ "--rise-delay": "140ms" } as React.CSSProperties}
       >
         <h2 className="mb-2 text-sm font-medium text-muted">Experiments</h2>
