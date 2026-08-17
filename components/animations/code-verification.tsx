@@ -24,7 +24,7 @@ export function CodeVerification() {
     <div
       role="img"
       aria-label="Jusbrasil verification screen: a six-digit code fills in and the Confirm button enables."
-      className="relative flex h-full w-full items-center justify-center overflow-hidden p-6 sm:p-8"
+      className="relative flex h-full w-full items-center justify-center p-6 sm:p-8"
     >
       <div
         className="relative w-full max-w-[440px] rounded-2xl border border-[#edf0f4] bg-white p-4 shadow-[0_18px_44px_-16px_rgba(15,23,42,0.28)] sm:p-5"

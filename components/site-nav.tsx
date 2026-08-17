@@ -140,6 +140,25 @@ function useScrollSpy(ids: (string | undefined)[]) {
         const el = document.getElementById(id);
         if (el && el.getBoundingClientRect().top <= line) current = id;
       }
+
+      /* The last section usually can't reach the reading line: it sits near the
+         end of the document, so the page runs out of scroll while it's still
+         below the mark. Home's Experiments stops at ~358px on an 800px-tall
+         window — its own nav item would never light, which reads as a broken
+         control rather than as a page that's simply short.
+         At the bottom of the document the answer isn't in doubt anyway: the
+         last section is the one you're looking at. Guarded on the page actually
+         scrolling, so a page that fits the window doesn't mark its final
+         section active from the start. */
+      const doc = document.documentElement;
+      const scrollable = doc.scrollHeight - window.innerHeight;
+      if (
+        scrollable > 0 &&
+        window.scrollY >= scrollable - 2 // fractional zoom / DPR slack
+      ) {
+        current = targets[targets.length - 1];
+      }
+
       setActive(current);
     };
     const onScroll = () => {

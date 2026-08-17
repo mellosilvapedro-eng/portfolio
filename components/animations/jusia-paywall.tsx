@@ -1,5 +1,6 @@
 "use client";
 
+import type { AnimationProps } from "@/lib/animations";
 import { JusIaLogo } from "./brand-logo";
 import { useLoopStep, usePrefersReducedMotion } from "./use-loop-step";
 
@@ -19,16 +20,17 @@ const BENEFITS = [
  * #dafff7, slate ink #0f172a). Pops in at the moment of value, holds, and
  * loops. Replaces the 1.75 MB Lottie of the same modal.
  */
-export function JusiaPaywall() {
+export function JusiaPaywall({ immediate }: AnimationProps) {
   const reduce = usePrefersReducedMotion();
-  const step = useLoopStep(STEPS, !reduce, reduce ? 1 : 0);
+  // Step 1 is where the modal is on screen; step 0 is the loop's out-frame.
+  const step = useLoopStep(STEPS, !reduce, reduce ? 1 : 0, immediate ? 1 : 0);
   const shown = step === 1;
 
   return (
     <div
       role="img"
       aria-label="Jus AI upgrade modal: an exclusive offer with a discounted plan, benefit list, and saved card."
-      className="relative flex h-full w-full items-center justify-center overflow-hidden p-6 sm:p-8"
+      className="relative flex h-full w-full items-center justify-center p-6 sm:p-8"
     >
       <div
         className={`relative w-full max-w-[440px] rounded-2xl border border-[#edf0f4] bg-white p-4 shadow-[0_18px_44px_-16px_rgba(15,23,42,0.28)] transition-all duration-500 ease-out-strong sm:p-5 ${

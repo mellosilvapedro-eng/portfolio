@@ -49,6 +49,13 @@
   --gb-via: #a3a3a3;
   --gb-to: #fafafa;
   --gb-via-pos: 32%;
+
+  /* The lightbox scrim. Dark in both themes on purpose — the thing it sits
+     behind is a screenshot, and a screenshot is mostly light. A paper-coloured
+     scrim in light mode would have nothing to push against and the enlarged
+     media would read as still being on the page. Built on the page's ink
+     (#1a1a1a) rather than #000, same as everything else here. */
+  --scrim: rgba(26, 26, 26, 0.6);
 }
 
 .dark {
@@ -81,6 +88,10 @@
   --gb-via: #262626;
   --gb-to: #525252;
   --gb-via-pos: 50%;
+
+  /* Denser than light: the ground underneath is already near-black, so the
+     same 0.6 would barely register as a state change. */
+  --scrim: rgba(6, 6, 6, 0.72);
 }
 
 @theme inline {
@@ -94,6 +105,7 @@
   --color-layer: var(--layer);
   --color-field: var(--field);
   --color-stroke: var(--stroke);
+  --color-scrim: var(--scrim);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
   /* Strong easing curves (from Emil Kowalski's design eng notes) */

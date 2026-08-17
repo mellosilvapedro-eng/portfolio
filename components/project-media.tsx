@@ -1,19 +1,5 @@
-import type { ComponentType } from "react";
-import { CodeVerification } from "@/components/animations/code-verification";
-import { DeviceControl } from "@/components/animations/device-control";
-import { DeviceLastSwitch } from "@/components/animations/device-lastswitch";
-import { JusiaPaywall } from "@/components/animations/jusia-paywall";
-import { SegmentedToggle } from "@/components/animations/segmented-toggle";
+import { MediaZoom } from "@/components/media-zoom";
 import type { MediaItem } from "@/lib/projects";
-
-/** Coded animations, keyed by MediaItem.component. */
-const ANIMATIONS: Record<string, ComponentType> = {
-  "jusia-paywall": JusiaPaywall,
-  "device-control": DeviceControl,
-  "code-verification": CodeVerification,
-  "device-lastswitch": DeviceLastSwitch,
-  "segmented-toggle": SegmentedToggle,
-};
 
 /**
  * The media shown at the end of a case study. Each item sits on a neutral,
@@ -74,71 +60,12 @@ export function ProjectMedia({ media }: { media?: MediaItem[] }) {
   );
 }
 
+// Every tile opens into a lightbox on click, so the media itself lives in
+// MediaZoom rather than here. Screenshots and videos need to be one
+// shared-layout pair with their enlarged copy — split across a server and a
+// client component they'd be two unrelated elements and the tile would pop
+// rather than grow — and the coded animations need their artboard measured off
+// the live tile before they can be scaled up.
 function MediaTile({ item }: { item: MediaItem }) {
-  if (item.type === "component") {
-    const Animation = item.component ? ANIMATIONS[item.component] : undefined;
-    return Animation ? <Animation /> : null;
-  }
-
-  const fitClass = item.fit === "cover" ? "object-cover" : "object-contain";
-
-  if (item.type === "image" && item.frame) {
-    // A screenshot floating on the neutral stage, like the video: centred and
-    // contained, with a hairline border + shadow so its white edges read
-    // cleanly against the stage. Static — no motion.
-    return (
-      <div className="flex h-full w-full items-center justify-center p-4 sm:p-8">
-        {/* eslint-disable-next-line @next/next/no-img-element -- static /public asset; matches the site's existing <img> convention (no next/image) */}
-        <img
-          src={item.src}
-          alt={item.alt ?? ""}
-          loading="lazy"
-          decoding="async"
-          className="max-h-full max-w-full rounded-lg border border-border object-contain shadow-[0_18px_44px_-16px_rgba(0,0,0,0.28)]"
-        />
-      </div>
-    );
-  }
-
-  if (item.type === "video") {
-    // A rounded screen floating on the neutral stage (alphagrill-style). The
-    // wrapper takes the video's own aspect ratio so object-cover never crops,
-    // and rounds + shadows the content to match the other cards.
-    return (
-      <div className="flex h-full w-full items-center justify-center p-4 sm:p-8">
-        <div
-          className="overflow-hidden rounded-lg shadow-[0_18px_44px_-16px_rgba(0,0,0,0.28)]"
-          style={{
-            aspectRatio: item.aspect ?? "16 / 9",
-            maxWidth: "100%",
-            maxHeight: "100%",
-          }}
-        >
-          <video
-            className="h-full w-full object-cover"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            poster={item.poster}
-            aria-label={item.alt ?? item.caption}
-          >
-            <source src={item.src} type="video/mp4" />
-          </video>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    // eslint-disable-next-line @next/next/no-img-element -- static /public asset; matches the site's existing <img> convention (no next/image)
-    <img
-      src={item.src}
-      alt={item.alt ?? ""}
-      loading="lazy"
-      decoding="async"
-      className={`h-full w-full p-4 sm:p-6 ${fitClass}`}
-    />
-  );
+  return <MediaZoom item={item} />;
 }
