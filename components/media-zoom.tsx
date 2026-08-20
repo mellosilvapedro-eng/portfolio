@@ -34,11 +34,14 @@ const PANEL_SHADOW = "0 28px 72px -28px rgba(0,0,0,0.4)";
  * light theme's near-white stage it reads as grime rather than depth (the same
  * note --nav-shadow carries in globals.css). Light gets the site's tinted ink
  * at a fraction of that — a 1px contact layer to land the edge, and a short
- * soft one under it. Dark keeps real black, and more of it: on #0a0a0a a
- * shadow has to be dense before it registers as anything at all.
+ * soft one under it. Kept lighter than instinct suggests: the screenshots are
+ * white at their own edges, so the tile's border already draws the boundary and
+ * anything more than a hint under it reads as a dark band rather than lift.
+ * Dark keeps real black, and more of it: on #0a0a0a a shadow has to be dense
+ * before it registers as anything at all.
  */
 const TILE_SHADOW = [
-  "shadow-[0_1px_1px_rgba(17,17,24,0.03),0_10px_24px_-16px_rgba(17,17,24,0.09)]",
+  "shadow-[0_1px_1px_rgba(17,17,24,0.02),0_6px_16px_-14px_rgba(17,17,24,0.045)]",
   "dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_16px_36px_-20px_rgba(0,0,0,0.38)]",
 ].join(" ");
 

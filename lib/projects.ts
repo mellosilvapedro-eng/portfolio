@@ -107,15 +107,24 @@ export const projects: Project[] = [
         caption: "Jus AI answering a legal due-diligence prompt.",
       },
       {
+        type: "image",
+        src: "/projects/monetization-jusia/response-limit-paywall.png",
+        frame: true,
+        aspect: "1512 / 875",
+        alt: "The Jus IA chat with a due-diligence answer on screen and an inline card below it reading 'Você chegou no limite de respostas', with an 'Assinar agora' button.",
+        caption:
+          "The trigger in context — the response limit lands under a finished answer, not before it.",
+      },
+      {
         type: "component",
         component: "jusia-paywall",
         caption: "The output-based paywall, shown right after the AI delivers value.",
       },
       {
         type: "image",
-        src: "/projects/monetization-jusia/pro-plans.png",
+        src: "/projects/monetization-jusia/plans-repackaging.png",
         frame: true,
-        aspect: "3010 / 1528",
+        aspect: "1512 / 875",
         alt: "Jusbrasil's plans page after the repackaging: Essencial, Profissional, and a recommended Premium tier, each including Jus IA, with a monthly/annual toggle.",
         caption:
           "The plan repackaging — three tiers built around the AI, with Premium set as the recommended plan to lift ARPU.",
