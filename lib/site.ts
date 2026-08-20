@@ -15,8 +15,8 @@ export const site = {
   /** The same, for /projects — the experiments have their own page now, so they
    *  get their own opening rather than a heading halfway down home. */
   projectsIntro: [
-    "This section showcases my latest projects and experiments. I see design as a playground to explore my interests, and this is my creative space for that.",
-    "I hope that you enjoy as I do.",
+    "This page collects my latest projects and experiments. I see design as a playground to explore my interests, and this is my creative space for that.",
+    "I hope you enjoy it as much as I do.",
   ],
   /** Career history. Drives the home page's Experience & Work timeline, where
    *  each job also carries the published case studies whose `company` matches
