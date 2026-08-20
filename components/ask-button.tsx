@@ -19,22 +19,22 @@ import { askPedro } from "@/lib/ask";
    opens rightward into a pill and says what it does, the label's highlight
    sweeping as it lands.
 
-   Why the odd nesting: the wrapper holds a fixed 44px in the nav's flex row and
+   Why the odd nesting: the wrapper holds a fixed 48px in the nav's flex row and
    the button is absolute inside it, so opening overflows to the right instead of
    re-centring the bar. If the row re-centred, the mark would slide left out from
    under the cursor pointing at it — the one thing this animation must not do.
-   It's also why the grid lives in its own 44px box: fixed width, so the mark
+   It's also why the grid lives in its own 48px box: fixed width, so the mark
    doesn't drift as the pill grows past it.
    ──────────────────────────────────────────────────────────────────────── */
 
 /* The open width, and the only magic number here — a button can't transition to
-   `max-content`, so the target has to be stated. 44px of mark, ~88px of label
+   `max-content`, so the target has to be stated. 48px of mark, ~88px of label
    (14px Inter Medium — the nav links' size, since this reads as part of that
    row), 16px of trailing room. One number covers both copies: "Ask anything"
    and "Ask about it" land within a few px of each other, and slack shows up as
    extra padding on the right, which is the harmless failure. Any label much
    longer than these wants a bigger number, not a longer word. */
-const OPEN = "9.25rem"; /* 148px */
+const OPEN = "9.5rem"; /* 152px */
 
 /* Opening is the flourish and closing is just getting out of the way, so the
    durations are asymmetric. The trick is which state holds which: `hover:` is
@@ -42,7 +42,7 @@ const OPEN = "9.25rem"; /* 148px */
    collapse. Both are under 300ms, and `ease-out-strong` front-loads them hard
    enough that the pill is visually most of the way open in the first 90ms. */
 const SURFACE = [
-  "nav-surface group absolute left-0 top-0 flex h-11 w-11 items-center",
+  "nav-surface group absolute left-0 top-0 flex h-12 w-12 items-center",
   "overflow-hidden rounded-full",
   "transition-[width,transform] duration-200 ease-out-strong",
   "hover:w-[var(--open-w)] hover:duration-300",
@@ -77,14 +77,14 @@ export function AskButton({
   const { setOpen } = useChat();
 
   return (
-    <div className="relative h-11 w-11 shrink-0">
+    <div className="relative h-12 w-12 shrink-0">
       <button
         type="button"
         onClick={() => (prompt ? askPedro(prompt) : setOpen(true))}
         style={{ "--open-w": OPEN } as React.CSSProperties}
         className={SURFACE}
       >
-        <span className="grid size-11 shrink-0 place-items-center">
+        <span className="grid size-12 shrink-0 place-items-center">
           <PixelGrid color="bg-[var(--nav-fg)]" />
         </span>
         <span className={LABEL}>{label}</span>

@@ -12,6 +12,12 @@ export const site = {
     "Today, I work on the Growth team at Factorial. I design experiences that help businesses discover value, adopt products, and grow.",
     "Previously, I worked on the Growth Design team at Jusbrasil.",
   ],
+  /** The same, for /projects — the experiments have their own page now, so they
+   *  get their own opening rather than a heading halfway down home. */
+  projectsIntro: [
+    "This section showcases my latest projects and experiments. I see design as a playground to explore my interests, and this is my creative space for that.",
+    "I hope that you enjoy as I do.",
+  ],
   /** Career history. Drives the home page's Experience & Work timeline, where
    *  each job also carries the published case studies whose `company` matches
    *  this `company` — so the string has to stay spelled the same in both files
@@ -57,14 +63,8 @@ export const site = {
     url?: string;
     description: string;
   }[],
-  /** Side projects and explorations, shown below the timeline. */
+  /** Side projects and explorations, listed on /projects. */
   experiments: [
-    {
-      name: "Skills",
-      description: "Design skills for AI agents",
-      url: "/skills",
-      year: "2026",
-    },
     {
       name: "SpecNote",
       description: "Notes that become specs",
@@ -78,6 +78,16 @@ export const site = {
       year: "2026",
     },
   ],
+  /** The agent-skills collection. It used to be a row in the experiments list;
+   *  it's a destination in the nav now, so it's out of that list — but the
+   *  assistant should still be able to point a visitor at it, which is why it
+   *  stays here rather than only in app/skills (see lib/persona). */
+  skillsPage: {
+    name: "Skills",
+    description: "Design skills for AI agents",
+    url: "/skills",
+    year: "2026",
+  },
   url: "https://pedromello.cc",
   email: "mellosilvapedro@gmail.com",
   links: {

@@ -1,19 +1,16 @@
 import { CareerTimeline } from "@/components/career-timeline";
-import { ExperimentList } from "@/components/experiment-list";
+import { SiteFooter } from "@/components/site-footer";
+import { SiteHeader } from "@/components/site-header";
 import { SiteNav } from "@/components/site-nav";
 import { SplashScreen } from "@/components/splash-screen";
+import { SITE_LINKS } from "@/lib/nav";
 import { site } from "@/lib/site";
 
-/* Two stops, as the design has it: the top, and the end. "Work" used to be the
-   second one, back when work was its own section — now that it's merged into the
-   timeline the page reads About → the career → Experiments, and the timeline is
-   simply what you scroll through between the two. The `work` id stays on it for
-   deep links. */
-const NAV = [
-  { label: "About", target: "about" },
-  { label: "Experiments", target: "experiments" },
-  { label: "Ask anything", ask: true as const },
-];
+/* Home is the Work page now. The nav below it is the site's, not this page's —
+   the pill switches routes rather than scrolling to sections, so there's nothing
+   here to point at but the career itself, and the experiments moved out to
+   /projects where they get their own opening. */
+const NAV = [...SITE_LINKS, { label: "Ask anything", ask: true as const }];
 
 export default function Home() {
   return (
@@ -39,83 +36,26 @@ function HomeContent() {
        from here to /skills inherits it and that page waits two seconds for a
        cover it never had. See globals.css. */
     <main className="splash-page mx-auto flex min-h-dvh max-w-2xl flex-col px-6 pb-36 pt-20 sm:pt-28">
-      <header id="about" className="animate-rise scroll-mt-24">
-        <Mark />
-        <div className="mt-4 space-y-1">
-          <h1 className="text-lg font-medium tracking-tight">{site.name}</h1>
-          <p className="text-muted">
-            {site.role}
-            <span className="px-1.5 text-border" aria-hidden="true">
-              ·
-            </span>
-            {site.location}
-          </p>
-        </div>
-        <div className="mt-6 max-w-prose space-y-4 leading-relaxed text-foreground/80">
-          {site.bio.map((paragraph) => (
-            <p key={paragraph}>{withMentions(paragraph)}</p>
-          ))}
-        </div>
-      </header>
+      <SiteHeader bio={site.bio}>{withMentions}</SiteHeader>
 
       {/* One section, not two. Career history and the case studies were separate
           lists reading off the same companies; each case now hangs off the job
           it came out of. */}
       <section
         id="work"
-        className="animate-rise mt-16 scroll-mt-24"
+        className="animate-rise mt-24 scroll-mt-24"
         style={{ "--rise-delay": "60ms" } as React.CSSProperties}
       >
-        <h2 className="mb-6 text-sm font-medium text-muted">
+        <h2 className="mb-8 text-sm font-medium text-muted">
           Experience & Work
         </h2>
         <CareerTimeline />
       </section>
 
-      <section
-        id="experiments"
-        className="animate-rise mt-16 scroll-mt-24"
-        style={{ "--rise-delay": "140ms" } as React.CSSProperties}
-      >
-        <h2 className="mb-2 text-sm font-medium text-muted">Experiments</h2>
-        <ExperimentList />
-      </section>
-
-      <footer
-        className="animate-rise mt-auto flex flex-wrap items-center gap-x-5 gap-y-2 pt-24 text-sm text-muted sm:pt-[100px]"
-        style={{ "--rise-delay": "200ms" } as React.CSSProperties}
-      >
-        <FooterLink href={site.links.linkedin}>LinkedIn</FooterLink>
-        <FooterLink href={site.links.github}>GitHub</FooterLink>
-        <FooterLink href={`mailto:${site.email}`}>Email</FooterLink>
-        <span className="ml-auto tabular">
-          © {new Date().getFullYear()} {site.name}
-        </span>
-      </footer>
+      <SiteFooter />
 
       <SiteNav items={NAV} />
     </main>
-  );
-}
-
-/* Opens the page: the same dithered orb that serves as the favicon and as the
-   assistant's avatar, so the mark you see in the tab is the one at the top of
-   the page. The 32px box and its 7px radius are baked into the file.
-   The art is drawn for dark grounds (a light orb on a near-black square), so it
-   sits native in dark mode and inverts in light — matching how the chat renders
-   it. */
-function Mark() {
-  return (
-    // eslint-disable-next-line @next/next/no-img-element -- static /public SVG; matches the site's existing <img> convention (no next/image)
-    <img
-      src="/logo.svg"
-      alt=""
-      aria-hidden="true"
-      width={32}
-      height={32}
-      draggable={false}
-      className="size-8 select-none invert dark:invert-0"
-    />
   );
 }
 
@@ -137,24 +77,5 @@ function withMentions(text: string) {
     ) : (
       part
     ),
-  );
-}
-
-function FooterLink({
-  href,
-  children,
-}: {
-  href: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-link hover:text-foreground"
-    >
-      {children}
-    </a>
   );
 }

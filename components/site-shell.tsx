@@ -51,6 +51,25 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
       >
         {children}
 
+        {/* Out of focus behind a case preview. A window-level layer, like the
+            two fades and the toggle — it belongs to the frame rather than to the
+            list that triggers it, and it has to be here for a mechanical reason
+            as well: `fixed` inside the page would resolve against whichever
+            section it sat in, covering that section instead of the window.
+
+            z-20, the same rung as the fades, which puts it over everything in
+            the page's own flow and under the card (z-30), the toggle (z-30) and
+            the bar (z-40). Tracks the shell's right edge for the same reason the
+            fades do. Its own opacity and blur are in globals.css, keyed off the
+            open preview with `:has()` — nothing about it is wired through here,
+            so pages that have no previews pay for one idle layer and no JS. */}
+        <div
+          aria-hidden="true"
+          className={`preview-scrim pointer-events-none fixed inset-y-0 left-0 z-20 ${
+            open ? "right-0 lg:right-96 lg:rounded-r-2xl" : "right-0"
+          }`}
+        />
+
         {/* Both edges get the same treatment, for the same reason: each one has a
             control pinned to it, and text arriving underneath has to go somewhere.
             Both sit at z-20, under the toggle's z-30 and the bar's z-40, and both

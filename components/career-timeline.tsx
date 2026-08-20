@@ -23,10 +23,11 @@ import { site } from "@/lib/site";
    sticky` is trapped inside its parent's box, so a sticky child of a cell that
    is exactly as tall as one entry owns the screen for exactly that entry, and
    the hand-off is the parent's bottom edge catching up. Travel distance is
-   `cellHeight − labelHeight`, which is why the 64px below each entry is load
-   bearing rather than decoration — it's the runway. The design's own figure was
-   44px; the extra 20 buys every entry, including the short ones, enough travel
-   to actually park rather than just drift past.
+   `cellHeight − labelHeight`, which is why the 96px below each entry is load
+   bearing rather than decoration — it's the runway. The design used to say 44px
+   there and the code carried 64 to make the short entries park rather than just
+   drift past; the design now says 96, which is more runway than any of them
+   need, so the hand-tuned number goes away.
 
    Three things this depends on, each of which fails silently:
 
@@ -56,7 +57,7 @@ import { site } from "@/lib/site";
 
    Stacked, the vertical beats are what carry the structure the columns carried,
    so they step: 4px inside the entry, 8px under the period, 24px to the case
-   links, 48px to the next entry. The last is 64px on the desktop row because
+   links, 48px to the next entry. The last is 96px on the desktop row because
    there it is also the sticky runway — on a 390px screen that much empty space
    is just scrolling, and 48 keeps the ladder roughly doubling.
 
@@ -141,43 +142,52 @@ export function CareerTimeline() {
             </div>
 
             <div
-              className={`col-start-2 row-start-2 min-w-0 max-w-[28.75rem] sm:col-start-3 sm:row-start-1 sm:pl-3 ${
-                isLast ? "" : "pb-12 sm:pb-16"
+              className={`col-start-2 row-start-2 min-w-0 sm:col-start-3 sm:row-start-1 sm:pl-3 ${
+                isLast ? "" : "pb-12 sm:pb-24"
               }`}
             >
-              <h3 className="pb-1 leading-[1.575] text-foreground">
-                {job.role} at{" "}
-                {job.url ? (
-                  <a
-                    href={job.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-link hover:opacity-70"
-                  >
-                    {job.company}
-                  </a>
-                ) : (
-                  job.company
-                )}
-              </h3>
-              <p className="leading-[1.4] text-foreground/65">
-                {job.description}
-              </p>
+              {/* The 460px measure is the prose's, not the cell's. The case
+                  rows below run the full width of the column — they're a list
+                  with a hover field, and a field that stopped 10px short of
+                  where the column ends would read as a mistake rather than as a
+                  measure. Holding the cap here is also what keeps the role and
+                  its summary breaking where the design breaks them. */}
+              <div className="max-w-[28.75rem]">
+                <h3 className="pb-1 leading-[1.575] text-foreground">
+                  {job.role} at{" "}
+                  {job.url ? (
+                    <a
+                      href={job.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-link hover:opacity-70"
+                    >
+                      {job.company}
+                    </a>
+                  ) : (
+                    job.company
+                  )}
+                </h3>
+                <p className="leading-[1.4] text-foreground/65">
+                  {job.description}
+                </p>
+              </div>
 
               {/* What shipped there. Indented by the row's own padding rather
                   than pulled flush like the experiments list, so the hover
-                  field reads as belonging to the job above it. Smaller and
-                  heavier than the role for the same reason: it's a child of
-                  the entry, not a peer of it. No year — the period on the rail
-                  already dated everything under it.
+                  field reads as belonging to the job above it. It reads at the
+                  role's own 16px now — it used to be a size under it — so
+                  weight is the whole difference: medium against the role's
+                  regular. No year — the period on the rail already dated
+                  everything under it.
 
                   24px off the description, and the row's own 14px of padding
-                  sits inside that — so the first title lands 38px below the
-                  summary while the two rows stay 50px apart from each other.
-                  The set has to read as a group hanging off the entry, which
-                  means the space above it is wider than the space within it. */}
+                  sits inside that, so the first title lands 38px below the
+                  summary; 12px between the rows themselves. The set has to read
+                  as a group hanging off the entry, which means the space above
+                  it stays wider than the space within it. */}
               {cases.length > 0 ? (
-                <ul className="mt-6">
+                <ul className="mt-6 space-y-3">
                   {cases.map((project) => (
                     <li key={project.slug}>
                       {/* The row is the link; the card the wrapper hangs over
@@ -186,7 +196,7 @@ export function CareerTimeline() {
                       <CasePreview media={project.media}>
                         <Link
                           href={`/${project.slug}`}
-                          className="group flex items-baseline gap-2 rounded-lg px-3 py-3.5 text-sm font-medium leading-snug transition-colors duration-150 hover:bg-hover focus-visible:bg-hover focus-visible:outline-none"
+                          className="group flex items-baseline gap-2 rounded-lg px-3 py-3.5 text-base font-medium leading-snug transition-colors duration-150 hover:bg-hover focus-visible:bg-hover focus-visible:outline-none"
                         >
                           <span className="text-foreground transition-transform duration-200 ease-out-strong group-hover:translate-x-0.5">
                             {project.title}

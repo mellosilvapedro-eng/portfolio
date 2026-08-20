@@ -267,6 +267,98 @@ body {
   );
 }
 
+/* The reading scrim — the window going soft behind a case preview.
+
+   Hovering a case study hangs a card of its own media over the list, and this is
+   what makes that card read as being *above* the page rather than as one more
+   row in it: the page goes out of focus and the card doesn't. The pinned
+   controls don't either — a control that blurred while you were reaching for it
+   would read as broken rather than as depth.
+
+   What is and isn't blurred is NOT settled by z-index. Chrome blurs the render
+   surface the scrim lands in, so anything sharing that surface goes soft no
+   matter how high it stacks, and the only reliable exemption is to be composited
+   somewhere else entirely. That's the whole reason the card is a portal on
+   `body` — components/case-preview carries the long version, and it's worth
+   reading before adding a second thing here that has to stay sharp.
+
+   3px, and no wash over it. A tint would read as the page dimming, which is a
+   different idea — this is depth of field, not a modal.
+
+   The scrim has a hole in it at the hovered row, so the case's own name stays
+   readable under its card: the two are one object — same left edge, same width,
+   the card is that row's contents enlarged — and blurring the name while
+   showing its picture sharp read as the page losing track of what you were
+   pointing at. Punched with `clip-path` and the even-odd rule rather than by
+   lifting the row, because lifting it can't work: see the note on surfaces
+   above. The seam lands on the edge of the row's own hover fill, which is why
+   it doesn't show, and the four corners the square hole leaves outside that
+   fill's 8px radius are flat page ground — blurring flat ground is a no-op.
+
+   The hole's rectangle arrives as custom properties, set by whichever preview
+   is open (components/case-preview). Zero by default, which makes the inner
+   ring degenerate and the hole nothing at all — so a page with no preview, or
+   one that has never been hovered, gets a plain full-window scrim.
+
+   The blur fades with the element's own opacity so it arrives and leaves with
+   the card. `opacity` on a backdrop-filtered element scales the filter's
+   *result* rather than isolating it, which is what makes that work — whereas
+   setting `isolation` here would make the scrim its own backdrop root and leave
+   nothing behind it to blur, the same trap documented on .nav-surface.
+
+   Driven by `:has()` rather than by state threaded down through the shell: the
+   preview already knows when it's open, and marking its own wrapper is the whole
+   of the plumbing. A browser without `:has()` gets the card and no scrim, which
+   is the half of the effect that carries the meaning anyway.
+
+   Both transitions are declared here, including `right`. That one isn't this
+   effect's — it's the shell's, so the scrim stops at the seam when the assistant
+   docks instead of washing over the rail, and it has to ease on the same curve
+   as the surface it tracks. It lives here because this class is unlayered and
+   would override a Tailwind `transition-*` utility on the element anyway. */
+:root {
+  --preview-hole-x: 0px;
+  --preview-hole-y: 0px;
+  --preview-hole-w: 0px;
+  --preview-hole-h: 0px;
+  --preview-hole-x2: calc(var(--preview-hole-x) + var(--preview-hole-w));
+  --preview-hole-y2: calc(var(--preview-hole-y) + var(--preview-hole-h));
+}
+
+.preview-scrim {
+  opacity: 0;
+  backdrop-filter: blur(3px);
+  /* The last vertex is not redundant — it is the whole trick. `polygon()` holds
+     one subpath, so the only way to carry a hole is to walk the outer ring, run
+     a seam in to the inner ring, walk that, and then run the seam back out
+     along the very same line. Traversed twice in opposite directions, the seam
+     encloses no area and even-odd ignores it. Drop that closing vertex and the
+     path returns to the origin from the inner ring's *last* corner instead,
+     which fences off a wedge between the origin and the hole — and even-odd
+     dutifully inverts it, leaving a diagonal bite of sharp page across the
+     window. It reads exactly like a radial gradient someone forgot to remove. */
+  clip-path: polygon(
+    evenodd,
+    0 0,
+    100% 0,
+    100% 100%,
+    0 100%,
+    0 0,
+    var(--preview-hole-x) var(--preview-hole-y),
+    var(--preview-hole-x2) var(--preview-hole-y),
+    var(--preview-hole-x2) var(--preview-hole-y2),
+    var(--preview-hole-x) var(--preview-hole-y2),
+    var(--preview-hole-x) var(--preview-hole-y)
+  );
+  transition:
+    opacity 200ms var(--ease-out-strong),
+    right 500ms var(--ease-drawer);
+}
+
+body:has([data-case-preview="open"]) .preview-scrim {
+  opacity: 1;
+}
+
 /* Inline links. The design underlines them in their own colour
    (`decoration-from-font`), so the recipe is the same everywhere and only the
    hover target changes per context. */
@@ -615,5 +707,3 @@ html[data-splash="play"] .splash-page {
     animation: splash-out 280ms ease 860ms forwards;
   }
 }
-
-
