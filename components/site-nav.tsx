@@ -1,34 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { AskButton } from "@/components/ask-button";
 import { useChat } from "@/components/chat-provider";
 import { ChipButton } from "@/components/chip-button";
-import { scrollBehavior } from "@/lib/motion";
+import { SITE_LINKS, type NavItem } from "@/lib/nav";
 
-/* The universal menu: one floating bar that follows the page it's on.
-   Home gets About / Work; a case study swaps in a back button and Screens.
+/* The universal menu: one floating bar, the same on every page.
 
-   The pill holds section links and nothing else. The assistant used to sit in
-   there with them, which framed it as a third place to scroll to; it now stands
-   beside the pill as its own button (components/ask-button). It drops out
-   entirely while the assistant is open — it's already answering.
+   The pill is the site's navigation — Work / Skills / Projects, the current one
+   lit. It used to be section links instead, a different set per page, which made
+   it a control that changed meaning as you moved; it now says the same thing
+   everywhere, and a case study just adds ← beside it to get back to the timeline
+   it came from.
+
+   The pill holds routes and nothing else. The assistant used to sit in there
+   with them, which framed it as a fourth place to go; it now stands beside the
+   pill as its own button (components/ask-button). It drops out entirely while
+   the assistant is open — it's already answering.
 
    The theme control used to end this row; it has moved to the corner of the
-   window (components/site-shell), which is why the bar is just sections and the
+   window (components/site-shell), which is why the bar is just routes and the
    assistant now. */
-
-export type NavItem = {
-  label: string;
-  /** id of the section this item scrolls to. */
-  target?: string;
-  /** Opens the assistant. A string is sent as the opening prompt. Items marked
-      this way leave the pill and become the trailing assistant button — their
-      `label` is the copy it opens to say, so it changes with what the page can
-      be asked about. */
-  ask?: string | true;
-};
 
 export function SiteNav({
   items,
@@ -39,10 +33,14 @@ export function SiteNav({
   back?: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const { open } = useChat();
-  const links = items.filter((item) => !item.ask);
+  /* Predicate rather than a plain truthiness filter, so the pill can read
+     `item.href` without asserting it. */
+  const links = items.filter(
+    (item): item is NavItem & { href: string } => !!item.href,
+  );
   const ask = items.find((item) => item.ask);
-  const active = useScrollSpy(links.map((i) => i.target));
 
   return (
     <div
@@ -50,34 +48,44 @@ export function SiteNav({
         open ? "lg:right-96 max-lg:hidden" : ""
       }`}
     >
+      {/* ← and the pill and the assistant come to 335px, which is more row than
+          a 320px phone has. The chip is the one to give up there: `back` points
+          at "/" on every page that sets it, and so does the pill's Work tab, so
+          below 360px the redundant control steps out rather than the bar
+          clipping at both ends. Guarded on there being a pill at all — on 404,
+          where the chip is the only way out, it stays at every width. */}
       {back ? (
-        <ChipButton label="Back" onClick={() => router.push(back)}>
+        <ChipButton
+          label="Back"
+          onClick={() => router.push(back)}
+          className={links.length > 0 ? "max-[359px]:hidden" : ""}
+        >
           <BackIcon />
         </ChipButton>
       ) : null}
 
       {links.length > 0 ? (
         <nav
-          aria-label="Page sections"
-          className="nav-surface flex h-11 items-center gap-1 rounded-full px-1.5"
+          aria-label="Main"
+          className="nav-surface flex h-12 items-center gap-1 rounded-full px-1.5"
         >
-          {links.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              onClick={() => item.target && scrollToSection(item.target)}
-              aria-current={
-                item.target && item.target === active ? "true" : undefined
-              }
-              className={`whitespace-nowrap rounded-full px-4 py-1.5 text-[14px] font-medium leading-[21px] transition-[color,background-color,transform] duration-150 ease-out-strong active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nav-fg)]/25 ${
-                item.target && item.target === active
-                  ? "bg-[var(--nav-active)] text-[var(--nav-fg)]"
-                  : "text-[var(--nav-muted)] hover:bg-[var(--nav-hover)] hover:text-[var(--nav-fg)]"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
+          {links.map((item) => {
+            const current = isCurrent(item.href, pathname);
+            return (
+              <Link
+                key={item.label}
+                href={item.href}
+                aria-current={current ? "page" : undefined}
+                className={`whitespace-nowrap rounded-full px-3 py-2 text-[14px] font-medium leading-[21px] transition-[color,background-color,transform] duration-150 ease-out-strong active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nav-fg)]/25 ${
+                  current
+                    ? "bg-[var(--nav-active)] text-[var(--nav-fg)]"
+                    : "text-[var(--nav-muted)] hover:bg-[var(--nav-hover)] hover:text-[var(--nav-fg)]"
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
       ) : null}
 
@@ -90,6 +98,25 @@ export function SiteNav({
         />
       ) : null}
     </div>
+  );
+}
+
+/** Which tab is lit.
+ *
+ *  Every route but home claims itself and anything nested under it; home claims
+ *  whatever is left. That last part is what keeps Work lit while you read a case
+ *  study — cases live at the top level (/[slug]) rather than under a folder, so
+ *  no prefix match can reach them, and a bar with three tabs and none of them on
+ *  reads as broken. They hang off the timeline on home, so that's the tab that
+ *  should be lit, and deriving it from the list means adding a fourth route
+ *  can't leave this rule behind. */
+function isCurrent(href: string, pathname: string) {
+  const nested = (route: string) =>
+    pathname === route || pathname.startsWith(`${route}/`);
+
+  if (href !== "/") return nested(href);
+  return !SITE_LINKS.some(
+    (link) => link.href && link.href !== "/" && nested(link.href),
   );
 }
 
@@ -112,68 +139,3 @@ function BackIcon() {
   );
 }
 
-function scrollToSection(id: string) {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.scrollIntoView({ behavior: scrollBehavior(), block: "start" });
-}
-
-/**
- * Marks the section the reader is currently in. Reads geometry on scroll rather
- * than using IntersectionObserver: the sections are page-length, so what
- * matters is which one has passed the reading line, not which is intersecting.
- */
-function useScrollSpy(ids: (string | undefined)[]) {
-  const [active, setActive] = useState<string>();
-  const key = ids.join("|");
-
-  useEffect(() => {
-    const targets = key.split("|").filter(Boolean);
-    if (targets.length === 0) return;
-
-    let frame = 0;
-    const measure = () => {
-      frame = 0;
-      const line = window.innerHeight * 0.4;
-      let current = targets[0];
-      for (const id of targets) {
-        const el = document.getElementById(id);
-        if (el && el.getBoundingClientRect().top <= line) current = id;
-      }
-
-      /* The last section usually can't reach the reading line: it sits near the
-         end of the document, so the page runs out of scroll while it's still
-         below the mark. Home's Experiments stops at ~358px on an 800px-tall
-         window — its own nav item would never light, which reads as a broken
-         control rather than as a page that's simply short.
-         At the bottom of the document the answer isn't in doubt anyway: the
-         last section is the one you're looking at. Guarded on the page actually
-         scrolling, so a page that fits the window doesn't mark its final
-         section active from the start. */
-      const doc = document.documentElement;
-      const scrollable = doc.scrollHeight - window.innerHeight;
-      if (
-        scrollable > 0 &&
-        window.scrollY >= scrollable - 2 // fractional zoom / DPR slack
-      ) {
-        current = targets[targets.length - 1];
-      }
-
-      setActive(current);
-    };
-    const onScroll = () => {
-      if (!frame) frame = requestAnimationFrame(measure);
-    };
-
-    measure();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    return () => {
-      if (frame) cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, [key]);
-
-  return active;
-}

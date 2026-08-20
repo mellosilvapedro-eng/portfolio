@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProjectMedia } from "@/components/project-media";
 import { SiteNav } from "@/components/site-nav";
+import { SITE_LINKS } from "@/lib/nav";
 import { getProject, projects } from "@/lib/projects";
 
 export function generateStaticParams() {
@@ -32,9 +33,13 @@ export default async function ProjectPage({
   if (!project) notFound();
 
   const hasMedia = !!project.media && project.media.length > 0;
+  /* The site's own pill, same as every other page. It used to be About /
+     Screens — two stops on a page you read top to bottom, which is what
+     scrolling is already for. Where you might actually want to go from here is
+     the rest of the site, so the bar says that instead, with ← to the timeline
+     this case came from and the assistant to ask about it. */
   const nav = [
-    { label: "About", target: "about" },
-    ...(hasMedia ? [{ label: "Screens", target: "screens" }] : []),
+    ...SITE_LINKS,
     {
       label: "Ask about it",
       ask: `Walk me through your "${project.title}" project at ${project.company}.`,

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CopyButton } from "@/components/copy-button";
 import { SiteNav } from "@/components/site-nav";
+import { SITE_LINKS } from "@/lib/nav";
 import { site } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -12,10 +13,7 @@ export const metadata: Metadata = {
 const REPO = "mellosilvapedro-eng/skills";
 const REPO_URL = `https://github.com/${REPO}`;
 
-const NAV = [
-  { label: "About", target: "about" },
-  { label: "Ask anything", ask: true as const },
-];
+const NAV = [...SITE_LINKS, { label: "Ask anything", ask: true as const }];
 
 const skills = [
   { name: "design-taste", description: "Design judgment for any interface." },
@@ -98,7 +96,7 @@ export default function SkillsPage() {
       </section>
 
       <footer
-        className="animate-rise mt-auto flex flex-wrap items-center gap-x-5 gap-y-2 pt-32 text-sm text-muted sm:pt-40"
+        className="animate-rise mt-auto flex flex-wrap items-center gap-x-5 gap-y-2 pt-72 text-sm text-muted sm:pt-96"
         style={{ "--rise-delay": "200ms" } as React.CSSProperties}
       >
         <FooterLink href={REPO_URL}>GitHub</FooterLink>
@@ -108,7 +106,7 @@ export default function SkillsPage() {
         </span>
       </footer>
 
-      <SiteNav items={NAV} back="/" />
+      <SiteNav items={NAV} />
     </main>
   );
 }

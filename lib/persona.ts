@@ -143,7 +143,9 @@ function caseStudies(): string {
 }
 
 function experiments(): string {
-  return site.experiments
+  /* The skills page left the experiments list when it got its own route, but
+     it's still one of the things Pedro made and worth pointing visitors at. */
+  return [...site.experiments, site.skillsPage]
     .map((e) => `- ${e.name} (${e.year}): ${e.description} — ${e.url}`)
     .join("\n");
 }
