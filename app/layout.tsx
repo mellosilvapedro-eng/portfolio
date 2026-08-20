@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AiChat } from "@/components/ai-chat";
 import { ChatProvider } from "@/components/chat-provider";
+import { SelectionAsk } from "@/components/selection-ask";
 import { SiteShell } from "@/components/site-shell";
 import { site } from "@/lib/site";
 
@@ -54,6 +55,8 @@ export default function RootLayout({
             {/* The assistant is painted first, as the layer the page floats on. */}
             <AiChat />
             <SiteShell>{children}</SiteShell>
+            {/* Highlight anything on the page and it offers to ask about it. */}
+            <SelectionAsk />
           </ChatProvider>
         </ThemeProvider>
         <Analytics />

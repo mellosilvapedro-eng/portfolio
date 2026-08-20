@@ -1,7 +1,7 @@
 "use client";
 
 import { useChat } from "@/components/chat-provider";
-import { PixelGrid } from "@/components/pixel-grid";
+import { SparkMark } from "@/components/spark-mark";
 import { askPedro } from "@/lib/ask";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -12,19 +12,19 @@ import { askPedro } from "@/lib/ask";
    starts a conversation. So it leaves the pill: its own surface, its own shape,
    sat beside the nav rather than inside it.
 
-   At rest it's just the mark — a round chip carrying the same pixel grid the
-   chat thinks in, and running the same wave it runs while the chat is thinking.
-   It doesn't wait to be hovered to move: a bar of static links plus one thing
-   that's already breathing is what points at it. Hover it (or focus it) and it
-   opens rightward into a pill and says what it does, the label's highlight
-   sweeping as it lands.
+   At rest it's just the mark — a round chip carrying the assistant's sparkle,
+   with the light rolling slowly through its stroke. It doesn't wait to be
+   hovered to move: a bar of static links plus one thing that's already
+   breathing is what points at it. Hover it (or focus it) and it opens rightward
+   into a pill and says what it does, the label's highlight sweeping the same
+   way the mark's does, only faster, as it lands.
 
    Why the odd nesting: the wrapper holds a fixed 48px in the nav's flex row and
    the button is absolute inside it, so opening overflows to the right instead of
    re-centring the bar. If the row re-centred, the mark would slide left out from
    under the cursor pointing at it — the one thing this animation must not do.
-   It's also why the grid lives in its own 48px box: fixed width, so the mark
-   doesn't drift as the pill grows past it.
+   It's also why the mark lives in its own 48px box: fixed width, so it doesn't
+   drift as the pill grows past it.
    ──────────────────────────────────────────────────────────────────────── */
 
 /* The open width, and the only magic number here — a button can't transition to
@@ -85,7 +85,10 @@ export function AskButton({
         className={SURFACE}
       >
         <span className="grid size-12 shrink-0 place-items-center">
-          <PixelGrid color="bg-[var(--nav-fg)]" />
+          {/* 18px in a 48px chip — a hair under Figma's ratio in its own 44px
+              frame, and three more than the pixel field used to take, because
+              an outline needs the room a solid block doesn't. */}
+          <SparkMark className="size-[18px] text-[var(--nav-fg)]" />
         </span>
         <span className={LABEL}>{label}</span>
       </button>

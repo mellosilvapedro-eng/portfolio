@@ -50,6 +50,7 @@ const truncate = (s: string) => {
 };
 
 const SUGGESTIONS = [
+  "What are you working on at Factorial?",
   "What did you work on at Jusbrasil?",
   "How do you approach monetization design?",
   "What's your design philosophy?",
@@ -204,6 +205,134 @@ function renderText(text: string, keyBase: string, live: boolean): React.ReactNo
   return nodes;
 }
 
+/* ────────────────────────────────────────────────────────────────────────
+   Block layout: paragraphs and short lists.
+
+   A long answer reads as a wall unless its blocks are real blocks. The model is
+   told (lib/persona.ts) to keep answers to one paragraph and, when one genuinely
+   runs long, to open with a framing line and follow it with a few "- " bullets.
+   Here that turns into paragraphs with air between them and list items with a
+   hanging indent, so the marker sits in the margin instead of inline with the
+   words — which is the whole point of a bullet.
+
+   Two block kinds exist and everything else is a paragraph. Inline marks still
+   render word-by-word through renderText, keyed off each block's absolute offset
+   in the segment: text only ever grows at its end, so an offset is stable and a
+   word already on screen is never remounted mid-stream.
+   ──────────────────────────────────────────────────────────────────────── */
+
+const BULLET = /^[-*•]\s+/; // "* " needs the space, so it can't eat "**bold**"
+const NUMBER = /^(\d+)[.)]\s+/;
+
+type Item = { marker: string; text: string; offset: number };
+type Block =
+  | { kind: "p"; text: string; offset: number }
+  | { kind: "list"; ordered: boolean; items: Item[] };
+
+function parseBlocks(text: string): Block[] {
+  const blocks: Block[] = [];
+  let offset = 0;
+  let pStart = -1;
+  let pEnd = -1;
+
+  const flush = () => {
+    if (pStart >= 0) {
+      const raw = text.slice(pStart, pEnd);
+      if (raw.trim()) blocks.push({ kind: "p", text: raw, offset: pStart });
+      pStart = -1;
+    }
+  };
+
+  for (const line of text.split("\n")) {
+    const start = offset;
+    offset += line.length + 1; // + the "\n" that split() ate
+    const body = line.trimStart();
+    const bullet = BULLET.exec(body);
+    const number = bullet ? null : NUMBER.exec(body);
+    const m = bullet ?? number;
+
+    if (m) {
+      flush();
+      const item: Item = {
+        marker: number ? `${number[1]}.` : "•",
+        text: body.slice(m[0].length),
+        offset: start + (line.length - body.length) + m[0].length,
+      };
+      // Mid-stream the marker lands a word before its text does; hold the item
+      // back rather than blinking a naked bullet for a frame.
+      if (!item.text) continue;
+      const prev = blocks[blocks.length - 1];
+      if (prev?.kind === "list" && prev.ordered === !!number) prev.items.push(item);
+      else blocks.push({ kind: "list", ordered: !!number, items: [item] });
+      continue;
+    }
+
+    if (!body) {
+      flush();
+      continue;
+    }
+    if (pStart < 0) pStart = start;
+    pEnd = start + line.length;
+  }
+  flush();
+  return blocks;
+}
+
+/* The caret rides at the end of the last block's text, so it sits after the
+   final word instead of dropping to a line of its own. */
+function Caret() {
+  return (
+    <motion.span
+      animate={{ opacity: [1, 1, 0, 0] }}
+      transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
+      className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[2px] rounded-full bg-foreground align-middle"
+    />
+  );
+}
+
+function renderBlocks(
+  text: string,
+  live: boolean,
+  caret: boolean,
+): React.ReactNode[] {
+  const blocks = parseBlocks(text);
+  const lastBlock = blocks.length - 1;
+
+  return blocks.map((b, i) => {
+    // Air between blocks reads as more than the air between a list's items, so
+    // the list holds together as one block instead of four loose lines.
+    const gap = i === 0 ? "" : " mt-2.5";
+
+    if (b.kind === "p") {
+      return (
+        <p key={b.offset} className={`whitespace-pre-wrap${gap}`}>
+          {renderText(b.text, String(b.offset), live)}
+          {caret && i === lastBlock && <Caret />}
+        </p>
+      );
+    }
+
+    const Tag = b.ordered ? "ol" : "ul";
+    return (
+      <Tag key={b.items[0].offset} className={`space-y-1.5${gap}`}>
+        {b.items.map((item, j) => (
+          <li key={item.offset} className="flex gap-2">
+            <span
+              className={`shrink-0 text-muted${b.ordered ? " w-3.5 tabular-nums" : " w-2"}`}
+            >
+              {item.marker}
+            </span>
+            <span className="min-w-0 whitespace-pre-wrap">
+              {renderText(item.text, String(item.offset), live)}
+              {caret && i === lastBlock && j === b.items.length - 1 && <Caret />}
+            </span>
+          </li>
+        ))}
+      </Tag>
+    );
+  });
+}
+
 function relativeTime(t: number): string {
   const s = Math.floor((Date.now() - t) / 1000);
   if (s < 60) return "just now";
@@ -277,6 +406,24 @@ export function AiChat() {
   const thinking = busy && lastType === "prompt"; // between the prompt and the first token
   // A session nobody has said anything in yet: welcome block + starter chips.
   const blank = current.activities.length === 0 && !busy;
+
+  // The home only exists on screen once the rail is open. Mounted, it's either
+  // off-screen (undocked) or under the shell (docked), so an entrance keyed to
+  // mount plays where nobody can see it — the first open would show a home that
+  // had already finished arriving. This counter keys the home instead, so it
+  // replays as the rail is revealed.
+  //
+  // One-way on purpose: it only bumps on the way in. Bumping on close, or
+  // driving the entrance off `open` directly, would rewind the home while the
+  // shell is still sliding back over it — 500ms of visible un-arriving.
+  // Adjusted during render rather than in an effect because it's derived from
+  // `open`, and an effect would paint the un-keyed frame first.
+  const [wasOpen, setWasOpen] = useState(open);
+  const [homeRun, setHomeRun] = useState(0);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setHomeRun((n) => n + 1);
+  }
 
   function patch(id: string, fn: (s: Session) => Session) {
     setStore((st) => ({
@@ -565,6 +712,9 @@ export function AiChat() {
       <aside
         role="dialog"
         aria-label="Ask Pedro"
+        /* Selecting the assistant's own text must not offer to ask about it
+           — see components/selection-ask. */
+        data-ask-selection="off"
         aria-hidden={!open}
         inert={!open}
         className={`fixed inset-1.5 z-50 ml-auto flex max-w-[26rem] flex-col overflow-hidden rounded-2xl bg-layer font-sans shadow-[0_1px_2px_rgba(17,17,24,0.04),0_8px_24px_rgba(17,17,24,0.1),0_18px_44px_rgba(17,17,24,0.1)] ring-1 ring-stroke transition-[opacity,transform] duration-500 ease-drawer lg:visible lg:inset-y-0 lg:left-auto lg:right-0 lg:z-0 lg:w-96 lg:max-w-none lg:translate-y-0 lg:rounded-none lg:opacity-100 lg:shadow-none lg:ring-0 dark:shadow-[0_2px_8px_rgba(0,0,0,0.4),0_12px_32px_rgba(0,0,0,0.55)] ${
@@ -637,7 +787,7 @@ export function AiChat() {
             className="scrollbar-thin flex flex-1 flex-col gap-5 overflow-y-auto p-3.5"
           >
             {blank ? (
-              <EmptyState />
+              <EmptyState key={homeRun} />
             ) : (
               <>
                 {current.activities.map((a) => (
@@ -664,7 +814,7 @@ export function AiChat() {
                 two reasons: the rail runs off the panel's right edge, which an
                 `overflow-y` ancestor would clip, and taking no flow space
                 leaves the welcome block centred in the whole body. */}
-            {blank && <Starters onPick={(q) => send(q)} />}
+            {blank && <Starters key={homeRun} onPick={(q) => send(q)} />}
             <div className="mx-3 rounded-[11px] border border-stroke bg-field px-3 py-2.5 transition-colors focus-within:border-foreground/25">
               <textarea
                 ref={taRef}
@@ -741,19 +891,21 @@ function ActivityRow({ content }: { content: Content }) {
       <div>
         {segments.map((seg, i) =>
           seg.kind === "text" ? (
-            <span key={i} className="whitespace-pre-wrap">
-              {renderText(seg.text, String(i), !!content.streaming)}
-            </span>
+            <div key={i}>
+              {renderBlocks(
+                seg.text,
+                !!content.streaming,
+                !!content.streaming && i === segments.length - 1,
+              )}
+            </div>
           ) : (
             <CaseCard key={i} slug={seg.slug} />
           ),
         )}
-        {content.streaming && (
-          <motion.span
-            animate={{ opacity: [1, 1, 0, 0] }}
-            transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
-            className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[2px] rounded-full bg-foreground align-middle"
-          />
+        {/* Nothing on screen yet, or a card came last — the caret has no line
+            of text to sit at the end of, so it stands on its own. */}
+        {content.streaming && segments[segments.length - 1]?.kind !== "text" && (
+          <Caret />
         )}
       </div>
 
@@ -816,24 +968,56 @@ function ThinkingRow() {
   );
 }
 
+/* The home's entrance — mark, then the two lines, then the starter rail. Four
+   beats on one clock in reading order, with `--ease-out-strong` written out in
+   JS form because a motion value can't read a CSS custom property.
+
+   Explicit delays rather than `staggerChildren`: the rail isn't in this subtree
+   — it renders up against the composer, not here — and it still has to land on
+   the same beat as the block above it.
+
+   Nothing runs past 440ms, which sits inside the rail's own 500ms reveal. That
+   ordering is the point: the home should look like it was already there and is
+   being uncovered, not like it arrived once the panel stopped moving. Reduced
+   motion drops the travel and keeps the fade, via the root
+   `MotionConfig reducedMotion="user"`. */
+const EASE_OUT: [number, number, number, number] = [0.23, 1, 0.32, 1];
+
+const enter = (delay: number) => ({
+  initial: { opacity: 0, y: 6 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.26, delay, ease: EASE_OUT },
+});
+
 function EmptyState() {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
-      className="flex flex-1 flex-col items-center justify-center gap-4 text-center"
-    >
-      <Logo className="h-10 w-10 rounded-[10px] shadow-sm" />
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+      {/* The mark settles the last 4% of its size instead of only fading in —
+          a thing arriving reads better than a thing appearing. 0.96 rather
+          than anything lower: the mark carries a shadow, and from much smaller
+          it reads as inflating rather than as landing. */}
+      <motion.div
+        initial={{ opacity: 0, y: 6, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.28, delay: 0.06, ease: EASE_OUT }}
+      >
+        <Logo className="h-10 w-10 rounded-[10px] shadow-sm" />
+      </motion.div>
       <div className="flex flex-col items-center gap-3">
-        <p className="text-[16px] font-medium leading-snug text-foreground">
+        <motion.p
+          {...enter(0.1)}
+          className="text-[16px] font-medium leading-snug text-foreground"
+        >
           Welcome to my Agent
-        </p>
-        <p className="w-60 text-pretty text-[13px] leading-relaxed text-muted">
+        </motion.p>
+        <motion.p
+          {...enter(0.14)}
+          className="w-60 text-pretty text-[13px] leading-relaxed text-muted"
+        >
           Ask me about my work, design approach, and experience
-        </p>
+        </motion.p>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -847,9 +1031,7 @@ function EmptyState() {
 function Starters({ onPick }: { onPick: (q: string) => void }) {
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.3 }}
+      {...enter(0.18)}
       className="absolute inset-x-0 bottom-full mb-3.5"
     >
       <div className="scrollbar-none flex gap-[9px] overflow-x-auto px-3.5">

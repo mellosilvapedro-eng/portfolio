@@ -388,8 +388,8 @@ body:has([data-case-preview="open"]) .preview-scrim {
 }
 
 /* Longhands, not the shorthand: the cell supplies its own duration and delay
-   inline, and a shorthand here would reset both. The chat's loader and the nav's
-   button run the same wave, unconditionally, in both places. */
+   inline, and a shorthand here would reset both. The wave runs unconditionally —
+   the loader is only ever on screen while there is something to wait for. */
 @utility animate-pixel {
   animation-name: pixel-on;
   animation-timing-function: ease-in-out;
@@ -424,6 +424,59 @@ body:has([data-case-preview="open"]) .preview-scrim {
 
 @utility animate-shimmer {
   animation: shimmer-text 1.4s linear infinite;
+}
+
+/* ── The assistant's mark ─────────────────────────────────────────────────
+   The sparkle in components/spark-mark isn't drawn, it's a hole: the glyph
+   (public/spark.svg, straight out of Figma) masks the element, and everything
+   you can see through it is this gradient. That's what buys the two things the
+   exported SVG couldn't give — a ramp that follows `currentColor`, so one mark
+   is ink on the light nav chip and near-white on the dark one, and a ramp that
+   moves.
+
+   Same geometry as `shimmer-text` above: a ramp twice the box's width, slid
+   across it. So the mark and the label beside it in the nav's button roll their
+   light the same way and in the same direction — the mark just takes twice as
+   long about it, because it never stops and the label only runs while you're
+   pointing at it.
+
+   The axis is 115°, which is roughly Figma's own (its gradient runs top-left →
+   bottom-right across the glyph); the sweep is what's new. The ramp is a
+   triangle — dim, `currentColor` at the halfway mark, dim again — and it is
+   twice the glyph's width, which is what keeps the mark looking drawn at every
+   frame of the loop. Both ends land on the same value, so the tile repeats
+   without a seam and the loop needs no gap to hide in; and the glyph, being
+   half a tile wide, always spans some part of a slope. A version with a lit
+   band and flat shoulders was the first try, and for about a third of every
+   cycle the shoulder covered the whole icon: it went from a lit sparkle to a
+   flat grey one, which reads as a control switching off rather than as light
+   moving over it.
+
+   `currentColor` is the lit stop, so the peak is the real colour of the
+   surface's text and never brighter — the mark can't out-shout the label beside
+   it — and the floor is that same colour at half strength rather than a second
+   token, which is the whole reason one rule covers the ink-on-white chip and
+   the near-white-on-black one. */
+.spark-mark {
+  --spark-dim: color-mix(in oklab, currentColor 50%, transparent);
+  mask: url(/spark.svg) center / contain no-repeat;
+  background-image: linear-gradient(
+    115deg,
+    var(--spark-dim),
+    currentColor 50%,
+    var(--spark-dim)
+  );
+  background-size: 200% 100%;
+  animation: spark-sweep 2.8s linear infinite;
+}
+
+@keyframes spark-sweep {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
 }
 
 /* Each streamed word resolves out of blur instead of snapping in, so a fast
@@ -683,6 +736,17 @@ html[data-splash="play"] .splash-page {
   }
   .animate-stream-in {
     animation: none;
+  }
+
+  /* The sweep stops on a ramp rather than on a flat fill: the mark still reads
+     as the icon that was drawn, it just isn't lit from a moving source. Freezing
+     it by redefining the keyframes, same as `pixel-on` above, means it holds
+     wherever the mark is used without this having to know where that is. */
+  @keyframes spark-sweep {
+    0%,
+    100% {
+      background-position: 50% 0;
+    }
   }
 
   /* The opening keeps its fades and loses the wave — which is the easy call
