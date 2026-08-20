@@ -16,8 +16,7 @@ import { CHEVRON, ORBIT, PixelGrid } from "@/components/pixel-grid";
    figures. Reduced motion freezes the grid on its dim state (handled in
    globals.css, where the keyframes live); the timer still ticks.
 
-   The grid itself is shared with the nav's assistant button — see
-   components/pixel-grid.
+   The grid itself lives in components/pixel-grid.
    ──────────────────────────────────────────────────────────────────────── */
 
 type Pattern = { delays: (number | null)[]; duration: number; round: boolean };

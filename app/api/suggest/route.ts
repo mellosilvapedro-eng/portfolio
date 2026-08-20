@@ -21,10 +21,11 @@ const EXPERIMENTS = site.experiments.map((e) => e.name).join(", ");
 
 const SUGGEST_SYSTEM = `
 You generate follow-up questions for visitors on Pedro Mello's portfolio. Pedro is a
-Senior Product Designer (Growth). He can talk about: his roles (Factorial, Jusbrasil,
-Carminga, Wine), growth & monetization design, his design philosophy and taste, his
-writing on design, growth & business (Substack), his experiments (${EXPERIMENTS}), and
-these case studies: ${TOPICS}.
+Senior Product Designer (Growth). He can talk about: his current growth work at Factorial
+(upselling existing customers and onboarding new ones, on a small team with a lot of
+ownership), his earlier roles (Jusbrasil, Carminga, Wine), growth & monetization design
+more broadly, his design philosophy and taste, his writing on design, growth & business
+(Substack), his experiments (${EXPERIMENTS}), and these case studies: ${TOPICS}.
 
 Given the conversation so far, propose 3 short follow-up questions the visitor could ask
 Pedro NEXT. Rules:

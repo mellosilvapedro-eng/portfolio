@@ -1,10 +1,14 @@
 /* ────────────────────────────────────────────────────────────────────────
-   The assistant's mark — a 3×3 pixel field.
+   The assistant's thinking state — a 3×3 pixel field.
 
-   One shape doing two jobs. In the chat it's the loader that holds the gap
-   before the first token; in the nav it's the button that opens the assistant.
-   Same grid, same wavefront, so the thing you press and the thing that answers
-   read as the same object.
+   It's the loader that holds the gap before the first token.
+
+   It used to be the nav's assistant button too, on the argument that the thing
+   you press and the thing that answers should read as one object. The button
+   carries the sparkle now (components/spark-mark) — a mark has to name the
+   thing it opens, and a field of blinking pixels names *computing*, which is
+   the answer to "what is it doing", not to "what is this". So the grid keeps
+   the question it was always answering.
 
    The keyframes (`pixel-on`) and the wave utility (`animate-pixel`) live in
    globals.css, which is also where reduced motion freezes them.
@@ -37,7 +41,8 @@ export function PixelGrid({
       fronts in flight, so the grid never reads as empty mid-animation. */
   duration?: number;
   round?: boolean;
-  /** Tailwind colour utility for the cells. The nav sits on its own scale. */
+  /** Tailwind colour utility for the cells — the page's ink unless the surface
+      the loader lands on runs its own scale. */
   color?: string;
 }) {
   return (
