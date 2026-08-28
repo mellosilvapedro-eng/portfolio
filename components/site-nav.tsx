@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { AskButton } from "@/components/ask-button";
+import { BackButton } from "@/components/back-button";
 import { useChat } from "@/components/chat-provider";
-import { ChipButton } from "@/components/chip-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SITE_LINKS, type NavItem } from "@/lib/nav";
 
@@ -13,20 +13,21 @@ import { SITE_LINKS, type NavItem } from "@/lib/nav";
    The pill is the site's navigation — Work / Skills / Projects, the current one
    lit. It used to be section links instead, a different set per page, which made
    it a control that changed meaning as you moved; it now says the same thing
-   everywhere, and a case study just adds ← beside it to get back to the timeline
-   it came from.
+   everywhere.
 
    The pill holds the routes and the theme switch, and the design ends the row
    with the switch for a reason: it belongs with them. All four are small,
-   instant, and finished the moment you let go.
+   instant, and finished the moment you let go — and all four keep you on the
+   page you're on.
 
-   The assistant is the one that isn't, so it's the one that left. It used to sit
-   in the pill (a fourth place to go, which it isn't), then beside it as its own
-   opening button; it now sits in the top corner of the window, where it points
-   down the side the conversation opens on. This component still renders it —
-   `fixed` doesn't care where in the tree it's written, and the `ask` item's copy
-   is already here — but it's a sibling of the bar, not part of it. It fades out
-   while the assistant is open: it's already answering. */
+   The two that don't are the ones that left the bar, one to each top corner.
+   ← used to head the row (a 48px chip that, with the pill beside it, wouldn't
+   fit a 320px phone) and now sits top-left, pointing back out of the page; the
+   assistant used to sit in the pill (a fourth place to go, which it isn't) and
+   now sits top-right, pointing down the side the conversation opens on. This
+   component still renders both — `fixed` doesn't care where in the tree it's
+   written, and the `back` route and the `ask` item's copy are already here — but
+   they're siblings of the bar, not part of it. */
 
 export function SiteNav({
   items,
@@ -36,7 +37,6 @@ export function SiteNav({
   /** Route the leading ← button goes to. Omitted on top-level pages. */
   back?: string;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
   const { open } = useChat();
   /* Predicate rather than a plain truthiness filter, so the pill can read
@@ -48,6 +48,25 @@ export function SiteNav({
 
   return (
     <>
+      {/* ← in the left corner, mirroring the assistant across the frame. It
+          stays put while the chat is open on a docked viewport — the rail takes
+          the right 24rem and this corner is still the shell's. Undocked it has
+          to go: there the rail is a `z-50` sheet over the whole window, and a
+          button left underneath it is invisible and still tabbable. Same
+          `visibility` treatment as the mark opposite, so it's actually out of
+          the tab order rather than just transparent, and the same timing — out
+          in 100ms, back only once the sheet has finished leaving. */}
+      {back ? (
+        <BackButton
+          href={back}
+          className={`fixed left-2 top-2 z-30 transition-[opacity,visibility] ease-drawer ${
+            open
+              ? "max-lg:invisible max-lg:pointer-events-none max-lg:opacity-0 duration-100 delay-0"
+              : "visible opacity-100 duration-300 delay-500"
+          }`}
+        />
+      ) : null}
+
       {/* The assistant, in the corner of the frame — the slot the theme toggle
           used to hold. It keeps its chip and its opening label, so what lands on
           the design's spacing is the 36px it shrank to rather than the bar's 48:
@@ -93,11 +112,11 @@ export function SiteNav({
           Coming back waits the full 500ms the chat spends leaving and then
           fades in over 300ms — the corner is empty when the mark arrives in it.
 
-          The delay does a second job that isn't about painting. The button opens
-          into its pill on `:hover` (components/ask-button), and closing the chat
-          by its ✕ leaves the cursor parked inside this box — so the frame the
-          button becomes hittable again, hover latches and it doesn't fade in, it
-          fades in *already opening*, then holds at 140px because the cursor
+          The delay does a second job that isn't about painting. The button
+          posts its label on `:hover` (components/ask-button), and closing the
+          chat by its ✕ leaves the cursor parked inside this box — so the frame
+          the button becomes hittable again, hover latches and it doesn't fade
+          in, it fades in *already labelled*, and holds there because the cursor
           never moved. Waiting out the chat is what prevents that: `visibility`
           holds `hidden` through the delay, and a hidden element is not hit-
           tested, so there is no hover to latch until the chat is actually gone.
@@ -123,27 +142,10 @@ export function SiteNav({
       ) : null}
 
       <div
-        className={`fixed inset-x-0 bottom-6 z-40 flex justify-center gap-[11px] px-4 transition-[right] duration-500 ease-drawer ${
+        className={`fixed inset-x-0 bottom-6 z-40 flex justify-center px-4 transition-[right] duration-500 ease-drawer ${
           open ? "lg:right-96 max-lg:hidden" : ""
         }`}
       >
-        {/* ← and the pill come to 312px, which with the row's own 32px of side
-            padding is more than a 320px phone has. The chip is the one to give
-            up there: `back` points at "/" on every page that sets it, and so
-            does the pill's Work tab, so below 360px the redundant control steps
-            out rather than the bar clipping at both ends. Guarded on there being
-            a pill at all — on 404, where the chip is the only way out, it stays
-            at every width. */}
-        {back ? (
-          <ChipButton
-            label="Back"
-            onClick={() => router.push(back)}
-            className={links.length > 0 ? "max-[359px]:hidden" : ""}
-          >
-            <BackIcon />
-          </ChipButton>
-        ) : null}
-
         {/* The surface is a plain div and the `<nav>` is the list inside it. The
             switch shares the pill but isn't navigation, and a landmark that
             promised "Main" and then held a button would be lying to anyone
@@ -151,8 +153,8 @@ export function SiteNav({
 
             It renders whether or not there are routes: 404 has none, and the
             theme is not a thing to lose because you mistyped a URL. With no list
-            to hold, the surface collapses to the ← chip's 48px circle instead of
-            a squat 44px capsule. */}
+            to hold, the surface collapses to a 48px circle around the switch
+            instead of a squat 44px capsule. */}
         <div
           className={`nav-surface flex h-12 items-center gap-1 rounded-full ${
             links.length > 0 ? "px-1.5" : "w-12 justify-center"
@@ -208,23 +210,3 @@ function isCurrent(href: string, pathname: string) {
     (link) => link.href && link.href !== "/" && nested(link.href),
   );
 }
-
-/* Exported from the design's back chip. Path data is Figma's, with the baked
-   #7D7D7D swapped for currentColor so the chip drives it. */
-function BackIcon() {
-  return (
-    <svg
-      width="11"
-      height="9"
-      viewBox="0 0 10.2315 8.90909"
-      fill="none"
-      aria-hidden="true"
-    >
-      <path
-        d="M4.45455 8.90909L0 4.45455L4.45455 0L5.22017 0.755682L2.06818 3.90767H10.2315V5.00142H2.06818L5.22017 8.14347L4.45455 8.90909Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-

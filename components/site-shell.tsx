@@ -74,17 +74,17 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
             Both sit at z-20, under the toggle's z-30 and the bar's z-40, and both
             use the same ramp pointed opposite ways (see globals.css).
 
-            The heights differ because the two controls do. The bar carries its own
-            blurred surface, so 48px is only ever softening an approach. The corner
-            control is a bare 16.5px glyph with nothing behind it, so its fade has
+            The heights differ because the controls do. The bar carries its own
+            blurred surface, so 48px is only ever softening an approach. The top
+            corners are bare glyphs with nothing behind them, so their fade has
             to actually clear the ground — and since the ramp is only ~50% dense at
             half its height, a 48px fade left the copy behind the glyph peaking
             brighter than the glyph itself (131 vs ~125 in dark). At 80px that drops
             to 70 and the icon wins its own corner. Past ~96px it stops paying for
-            the page it hides. The glyph up there is now the assistant's mark
-            rather than the theme toggle — the two traded places (components/
-            site-nav) — but it's the same 16.5px of bare stroke, so the number
-            still holds.
+            the page it hides. Both ends of that top edge have since changed
+            hands — the assistant's mark took the right from the theme toggle,
+            and ← left the bar for the left (components/site-nav) — but they're
+            the same 16.5px-and-under of bare stroke, so the number still holds.
 
             Both have to be *inside* this wrapper, not siblings of it. The wrapper
             is `relative z-10`, which makes it a stacking context, and the bar
