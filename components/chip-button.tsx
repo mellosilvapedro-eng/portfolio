@@ -1,6 +1,6 @@
 "use client";
 
-/** A 48×48 round chip on the floating-nav surface — used for ← and the theme.
+/** A 48×48 round chip on the floating-nav surface — the bar's ← button.
     Matches the pill's height, so the bar reads as one row of equal weights. */
 export function ChipButton({
   label,

@@ -708,7 +708,18 @@ export function AiChat() {
           pinned to the right that the shell slides off to reveal, so it needs no
           entrance of its own and stays mounted at z-0. Undocked, there's no room
           beside the content, so the same element becomes an inset sheet on top
-          and fades in. */}
+          and fades in.
+
+          `visibility` is in the transition list because the closed state sets
+          `invisible`, and a `visibility` that isn't listed doesn't wait its turn
+          — it flips at the first frame and takes the sheet with it. That's what
+          it was doing: undocked, closing measured `visibility: hidden` while
+          opacity was still 0.73, so the 500ms fade below was never once seen and
+          the sheet left in a single frame. Listed, it holds `visible` for the
+          whole duration going out and flips at the first frame coming back,
+          which is the asymmetry the fade needs in both directions — the same one
+          the corner button relies on (components/site-nav). Docked this changes
+          nothing: `lg:visible` pins it either way. */}
       <aside
         role="dialog"
         aria-label="Ask Pedro"
@@ -717,7 +728,7 @@ export function AiChat() {
         data-ask-selection="off"
         aria-hidden={!open}
         inert={!open}
-        className={`fixed inset-1.5 z-50 ml-auto flex max-w-[26rem] flex-col overflow-hidden rounded-2xl bg-layer font-sans shadow-[0_1px_2px_rgba(17,17,24,0.04),0_8px_24px_rgba(17,17,24,0.1),0_18px_44px_rgba(17,17,24,0.1)] ring-1 ring-stroke transition-[opacity,transform] duration-500 ease-drawer lg:visible lg:inset-y-0 lg:left-auto lg:right-0 lg:z-0 lg:w-96 lg:max-w-none lg:translate-y-0 lg:rounded-none lg:opacity-100 lg:shadow-none lg:ring-0 dark:shadow-[0_2px_8px_rgba(0,0,0,0.4),0_12px_32px_rgba(0,0,0,0.55)] ${
+        className={`fixed inset-1.5 z-50 ml-auto flex max-w-[26rem] flex-col overflow-hidden rounded-2xl bg-layer font-sans shadow-[0_1px_2px_rgba(17,17,24,0.04),0_8px_24px_rgba(17,17,24,0.1),0_18px_44px_rgba(17,17,24,0.1)] ring-1 ring-stroke transition-[opacity,transform,visibility] duration-500 ease-drawer lg:visible lg:inset-y-0 lg:left-auto lg:right-0 lg:z-0 lg:w-96 lg:max-w-none lg:translate-y-0 lg:rounded-none lg:opacity-100 lg:shadow-none lg:ring-0 dark:shadow-[0_2px_8px_rgba(0,0,0,0.4),0_12px_32px_rgba(0,0,0,0.55)] ${
           open
             ? "lg:translate-x-0"
             : // Undocked it fades out of the way; docked it stays put but rests

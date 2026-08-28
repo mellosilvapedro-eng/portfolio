@@ -1,7 +1,6 @@
 "use client";
 
 import { useChat } from "@/components/chat-provider";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 /**
  * The page content, as a card floating over the assistant rail.
@@ -52,14 +51,14 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
         {children}
 
         {/* Out of focus behind a case preview. A window-level layer, like the
-            two fades and the toggle — it belongs to the frame rather than to the
+            two fades — it belongs to the frame rather than to the
             list that triggers it, and it has to be here for a mechanical reason
             as well: `fixed` inside the page would resolve against whichever
             section it sat in, covering that section instead of the window.
 
             z-20, the same rung as the fades, which puts it over everything in
-            the page's own flow and under the card (z-30), the toggle (z-30) and
-            the bar (z-40). Tracks the shell's right edge for the same reason the
+            the page's own flow and under the card (z-30), the assistant's corner
+            button (z-30) and the bar (z-40). Tracks the shell's right edge for the same reason the
             fades do. Its own opacity and blur are in globals.css, keyed off the
             open preview with `:has()` — nothing about it is wired through here,
             so pages that have no previews pay for one idle layer and no JS. */}
@@ -76,13 +75,16 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
             use the same ramp pointed opposite ways (see globals.css).
 
             The heights differ because the two controls do. The bar carries its own
-            blurred surface, so 48px is only ever softening an approach. The toggle
-            is a bare 16.5px glyph with nothing behind it, so its fade has to
-            actually clear the ground — and since the ramp is only ~50% dense at
+            blurred surface, so 48px is only ever softening an approach. The corner
+            control is a bare 16.5px glyph with nothing behind it, so its fade has
+            to actually clear the ground — and since the ramp is only ~50% dense at
             half its height, a 48px fade left the copy behind the glyph peaking
             brighter than the glyph itself (131 vs ~125 in dark). At 80px that drops
             to 70 and the icon wins its own corner. Past ~96px it stops paying for
-            the page it hides.
+            the page it hides. The glyph up there is now the assistant's mark
+            rather than the theme toggle — the two traded places (components/
+            site-nav) — but it's the same 16.5px of bare stroke, so the number
+            still holds.
 
             Both have to be *inside* this wrapper, not siblings of it. The wrapper
             is `relative z-10`, which makes it a stacking context, and the bar
@@ -103,20 +105,6 @@ export function SiteShell({ children }: { children: React.ReactNode }) {
           aria-hidden="true"
           className={`top-fade pointer-events-none fixed left-0 top-0 z-20 h-20 transition-[right] duration-500 ease-drawer ${
             open ? "right-0 lg:right-96 lg:rounded-tr-2xl" : "right-0"
-          }`}
-        />
-
-        {/* Day / night, in the corner of the window. A direct child of the frame
-            in the design rather than part of any column — so it lives here, once,
-            and every page gets the same control in the same place.
-            `top-2 right-2` puts the 32px hit area where its 16.5px glyph lands on
-            the design's 15px / 16.5px insets. When the assistant docks it steps
-            in to the shell's new edge instead of floating over the rail, and on
-            viewports too narrow to dock (where the rail covers the page outright)
-            it gets out of the way, same as the bar does. */}
-        <ThemeToggle
-          className={`fixed top-2 z-30 transition-[right] duration-500 ease-drawer ${
-            open ? "right-2 lg:right-[24.5rem] max-lg:hidden" : "right-2"
           }`}
         />
 

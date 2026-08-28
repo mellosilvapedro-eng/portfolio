@@ -4,16 +4,24 @@ import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
 /**
- * Day / night, pinned to the top corner of the screen.
+ * Day / night, at the end of the nav pill.
  *
- * It has moved twice: out of the floating bar (whose right-hand slot now belongs
- * to the assistant), briefly into the home page's name row, and now out to the
- * viewport corner. The corner is the better home — it's page furniture, not
- * content, so it belongs to the window rather than to any one column, and it's
- * the same control in the same place on every page instead of one that moves
- * depending on whether a page happens to have a header row.
+ * It has wandered: out of the floating bar into the home page's name row, out
+ * again to the corner of the window, and now back into the bar — this time
+ * *inside* the pill rather than beside it, in the slot the design gives it after
+ * Projects. It trades places with the assistant, which has taken the corner.
  *
- * Positioning comes from the caller (components/site-shell) so this stays just
+ * Being in the pill is what settles it. This is a two-state switch: you press
+ * it, it's done, and nothing follows. That's the same kind of thing the three
+ * routes beside it are, and unlike the assistant, which opens a conversation.
+ * So it wears the pill's language rather than the page's — the links' muted ink,
+ * their hover ground, their focus ring — and reads as the fourth item in a row
+ * of four instead of a control parked nearby.
+ *
+ * The design's slot is 30px in a 44px pill; `size-8` in our 48px one is the same
+ * ratio, and it holds the 16.5px glyph the corner version had.
+ *
+ * Positioning comes from the caller (components/site-nav) so this stays just
  * the control.
  */
 export function ThemeToggle({ className = "" }: { className?: string }) {
@@ -34,7 +42,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
       aria-label="Toggle theme"
       title="Toggle theme"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className={`grid size-8 shrink-0 place-items-center rounded-full text-muted transition-[color,transform] duration-150 ease-out-strong hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 active:scale-[0.92] ${className}`}
+      className={`grid size-8 shrink-0 place-items-center rounded-full text-[var(--nav-muted)] transition-[color,background-color,transform] duration-150 ease-out-strong hover:bg-[var(--nav-hover)] hover:text-[var(--nav-fg)] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nav-fg)]/25 ${className}`}
     >
       <span className="relative grid size-[16.5px] place-items-center">
         <Icon lit={!isDark}>
