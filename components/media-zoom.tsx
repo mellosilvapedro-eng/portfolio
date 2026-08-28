@@ -45,6 +45,27 @@ const TILE_SHADOW = [
   "dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_16px_36px_-20px_rgba(0,0,0,0.38)]",
 ].join(" ");
 
+/**
+ * The same job for a video, which needs more of it.
+ *
+ * TILE_SHADOW is deliberately almost nothing on the light theme, and the reason
+ * is in the note above: a screenshot is white at its own edges and carries a
+ * `border`, so the boundary is already drawn and the shadow only has to hint at
+ * lift. A video has no border here — it's a bare rounded rectangle of moving
+ * image on a near-white stage — so that hint leaves its edge undefined and the
+ * tile reads as flat.
+ *
+ * So: still light, just present. A 1px contact layer to seat the edge and one
+ * short soft cast under it, at roughly three times TILE_SHADOW's light-theme
+ * alpha — which lands near the value the hover card already uses for its own
+ * video (see components/case-preview). Dark barely moves; real black on #0a0a0a
+ * was already registering.
+ */
+const VIDEO_SHADOW = [
+  "shadow-[0_1px_2px_rgba(17,17,24,0.05),0_8px_20px_-10px_rgba(17,17,24,0.16)]",
+  "dark:shadow-[0_1px_3px_rgba(0,0,0,0.26),0_18px_40px_-20px_rgba(0,0,0,0.42)]",
+].join(" ");
+
 /** Viewport inset of the lightbox — must track the `p-4 sm:p-10` below. */
 const INSET = (width: number) => (width < 640 ? 32 : 80);
 
@@ -139,6 +160,12 @@ export function MediaZoom({ item }: { item: MediaItem }) {
 
   const isVideo = item.type === "video";
   const isComponent = item.type === "component";
+  /* A clip to be watched rather than a moving thumbnail (see MediaItem.sound).
+     Every browser refuses to autoplay audible video, so the tile stays muted
+     no matter what — but opening the lightbox is a click, and a click is the
+     user gesture that earns the audio. So the sound, the controls and the
+     from-the-top start all live in the enlarged copy. */
+  const withSound = isVideo && !!item.sound;
   const label = item.alt ?? item.caption ?? "media";
   const aspect = item.aspect ?? "16 / 9";
 
@@ -174,18 +201,22 @@ export function MediaZoom({ item }: { item: MediaItem }) {
   }, [isComponent, maxCardWidth]);
 
   const close = useCallback(() => {
-    // Hand the playhead back before the enlarged copy unmounts.
-    if (zoomVideo.current && thumbVideo.current) {
+    // Hand the playhead back before the enlarged copy unmounts. Not for a
+    // narrated clip: the tile is a silent loop and shouldn't be dragged to
+    // wherever the viewer happened to stop watching.
+    if (!withSound && zoomVideo.current && thumbVideo.current) {
       thumbVideo.current.currentTime = zoomVideo.current.currentTime;
     }
     setOpen(false);
-  }, []);
+  }, [withSound]);
 
-  // Pick the enlarged video up where the thumbnail left off.
+  // Pick the enlarged video up where the thumbnail left off — again, only for
+  // a decorative loop. A clip with narration has a beginning, and joining it
+  // mid-sentence because the tile had been running is the wrong start.
   useEffect(() => {
-    if (!open || !thumbVideo.current || !zoomVideo.current) return;
+    if (!open || withSound || !thumbVideo.current || !zoomVideo.current) return;
     zoomVideo.current.currentTime = thumbVideo.current.currentTime;
-  }, [open]);
+  }, [open, withSound]);
 
   // Keep an enlarged animation fitted if the window changes under it.
   useEffect(() => {
@@ -264,7 +295,7 @@ export function MediaZoom({ item }: { item: MediaItem }) {
           <motion.div
             layoutId={shared}
             transition={MORPH}
-            className={`overflow-hidden rounded-lg ${TILE_SHADOW}`}
+            className={`overflow-hidden rounded-lg ${VIDEO_SHADOW}`}
             style={{ aspectRatio: aspect, maxWidth: "100%", maxHeight: "100%" }}
           >
             <video
@@ -384,7 +415,9 @@ export function MediaZoom({ item }: { item: MediaItem }) {
                         animate={reduce ? { opacity: 1 } : undefined}
                         exit={reduce ? { opacity: 0 } : undefined}
                         onClick={close}
-                        className="pointer-events-auto w-full cursor-zoom-out overflow-hidden rounded-xl"
+                        className={`pointer-events-auto w-full overflow-hidden rounded-xl ${
+                          withSound ? "" : "cursor-zoom-out"
+                        }`}
                         style={{
                           aspectRatio: aspect,
                           maxWidth: "min(84rem, 100%)",
@@ -395,13 +428,25 @@ export function MediaZoom({ item }: { item: MediaItem }) {
                         <video
                           ref={zoomVideo}
                           className="h-full w-full object-cover"
+                          /* The click that opened this granted user
+                             activation, so an unmuted autoplay is allowed
+                             here — and `controls` is the fallback for the
+                             cases where a browser still declines. */
                           autoPlay
-                          muted
-                          loop
+                          muted={!withSound}
+                          loop={!withSound}
+                          controls={withSound}
                           playsInline
                           preload="auto"
                           poster={item.poster}
                           aria-label={item.alt ?? item.caption}
+                          /* The wrapper closes the lightbox on click, which
+                             would make the play button and the scrubber
+                             unusable. Clicks on the player stop here; the
+                             scrim around it still closes. */
+                          onClick={
+                            withSound ? (e) => e.stopPropagation() : undefined
+                          }
                         >
                           <source src={item.src} type="video/mp4" />
                         </video>

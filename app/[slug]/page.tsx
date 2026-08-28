@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ProjectMedia } from "@/components/project-media";
 import { SiteNav } from "@/components/site-nav";
 import { SITE_LINKS } from "@/lib/nav";
-import { getProject, projects } from "@/lib/projects";
+import { getProject, projects, type Problem } from "@/lib/projects";
 
 export function generateStaticParams() {
   return projects.map((project) => ({ slug: project.slug }));
@@ -33,6 +33,8 @@ export default async function ProjectPage({
   if (!project) notFound();
 
   const hasMedia = !!project.media && project.media.length > 0;
+  /* Whether the process is dated rather than counted. See the column below. */
+  const dated = project.process.some((step) => step.label);
   /* The site's own pill, same as every other page. It used to be About /
      Screens — two stops on a page you read top to bottom, which is what
      scrolling is already for. Where you might actually want to go from here is
@@ -89,7 +91,7 @@ export default async function ProjectPage({
             ) : null}
 
             <Section title="The problem">
-              <p>{project.problem}</p>
+              <ProblemStatement problem={project.problem} />
             </Section>
 
             <Section title="The solution">
@@ -100,10 +102,19 @@ export default async function ProjectPage({
               <ol className="space-y-6">
                 {project.process.map((step, i) => (
                   <li key={step.title} className="flex gap-4">
-                    {/* Fixed column so 01/02/03 hang on one edge — the design's
-                        numbers are intrinsically sized and drift 2px apart. */}
-                    <span className="mt-0.5 w-[18px] shrink-0 text-sm leading-5 text-muted tabular">
-                      {String(i + 1).padStart(2, "0")}
+                    {/* Fixed column so the markers hang on one edge — the
+                        design's are intrinsically sized and drift a couple of
+                        pixels apart. Which width depends on what's in it: 18px
+                        fits 01/02/03, and a dated process needs the 56px the
+                        design gives "Q1 2026". The choice is the project's, not
+                        the step's, so one late step without a label can't pull
+                        the column out from under the ones above it. */}
+                    <span
+                      className={`mt-0.5 shrink-0 whitespace-nowrap text-sm leading-5 text-muted tabular ${
+                        dated ? "w-14" : "w-[18px]"
+                      }`}
+                    >
+                      {step.label ?? String(i + 1).padStart(2, "0")}
                     </span>
                     <div className="min-w-0">
                       <h3 className="font-medium leading-[26px] text-foreground">
@@ -143,6 +154,31 @@ export default async function ProjectPage({
 
       <SiteNav items={nav} back="/" />
     </main>
+  );
+}
+
+/* The problem statement.
+ *
+ * One paragraph for most cases. When a case's problem has sides, the design
+ * separates them by an empty paragraph rather than by a new spacing value — so
+ * the gap here is 1.625rem, which is exactly one line of the section's own
+ * leading. A part's title and its body stay adjacent, so each side reads as one
+ * block and the space between them is what does the separating. The titles are
+ * the body's colour and differ only in weight; making them headings would put a
+ * second level under a section that already has one. */
+function ProblemStatement({ problem }: { problem: Problem }) {
+  if (typeof problem === "string") return <p>{problem}</p>;
+
+  return (
+    <div className="space-y-[1.625rem]">
+      <p className="font-medium">{problem.lead}</p>
+      {problem.parts.map((part) => (
+        <div key={part.title}>
+          <p className="font-medium">{part.title}</p>
+          <p>{part.body}</p>
+        </div>
+      ))}
+    </div>
   );
 }
 
