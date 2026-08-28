@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { CasePreview } from "@/components/case-preview";
-import { publishedProjects } from "@/lib/projects";
+import { previewMedia, publishedProjects } from "@/lib/projects";
 import { site } from "@/lib/site";
 
 /* Experience and work as one thing.
@@ -193,7 +193,7 @@ export function CareerTimeline() {
                       {/* The row is the link; the card the wrapper hangs over
                           it on hover is the case's own first piece of media,
                           so the list shows what it's pointing at. */}
-                      <CasePreview media={project.media}>
+                      <CasePreview item={previewMedia(project)}>
                         <Link
                           href={`/${project.slug}`}
                           className="group flex items-baseline gap-2 rounded-lg px-3 py-3.5 text-base font-medium leading-snug transition-colors duration-150 hover:bg-hover focus-visible:bg-hover focus-visible:outline-none"

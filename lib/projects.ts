@@ -43,8 +43,20 @@ export type MediaItem = {
   poster?: string;
   /** "full" spans the row; "half" pairs 2-up. Defaults to "full". */
   span?: "full" | "half";
-  /** CSS aspect-ratio for the stage, e.g. "16 / 9". Defaults to "16 / 9". */
+  /** CSS aspect-ratio for the stage, e.g. "16 / 9". Defaults to "16 / 9".
+   *  For a video this is the media's box as well as the stage's — see the note
+   *  on the onboarding case's `story`. */
   aspect?: string;
+  /** A wider stage for the same media, from `md` up.
+   *
+   *  For the framed screenshots, whose stage the design makes deliberately
+   *  wider than the screen floating on it. On a narrow layout that inset is a
+   *  fifth of the width spent on empty bands either side of a thumbnail that's
+   *  already at an 8x downscale, so below `md` the stage takes the media's own
+   *  ratio and the screen gets the whole column. Only meaningful when it
+   *  differs from
+   *  `aspect`; omit it and the stage keeps one ratio at every width. */
+  stage?: string;
   /** How image / video fills the stage. Defaults to "contain". */
   fit?: "cover" | "contain";
   /** Video only. Marks a clip as something to be *watched* rather than a
@@ -59,6 +71,65 @@ export type MediaItem = {
    * shadow (like the video), instead of rendering edge-to-edge. */
   frame?: boolean;
 };
+
+/** A direction and a reading, for the comparison block. */
+export type Signal = {
+  /** Up is the good news. The renderer takes both the arrow and the weight
+   *  from this: the thing that worked reads brighter than the thing that
+   *  didn't, so the column you should be looking at is the louder one. */
+  trend: "up" | "down";
+  label: string;
+};
+
+/** One row of the operating-model diagram: a label and the chips it leads. */
+export type FlowRow = {
+  label: string;
+  /** `key` marks the chip the design fills — the one thing that changed. */
+  steps: { label: string; key?: boolean }[];
+  /** The row the diagram argues for. Outlined chips for the model being left
+   *  behind, filled ones for the model replacing it. */
+  active?: boolean;
+};
+
+/**
+ * A case study told as a flat run of blocks, in the order the design stacks
+ * them.
+ *
+ * Flat rather than nested, and the figures are the reason. They sit at the
+ * gallery's width *between* the numbered items of a run, so a section that
+ * owned its children would have to break out of its own column to place one.
+ * Everything is a sibling instead, and the renderer derives the space between
+ * two blocks from the pair of kinds — which is how the design states its
+ * rhythm anyway: a figure after a step is 32px, a step after a figure is 64.
+ *
+ * A case with a `story` renders it in place of the fixed
+ * problem → solution → process → results page. The four structured fields stay
+ * populated either way: they're what the assistant reads (see lib/persona), and
+ * a case needs that summary whether or not its page tells the longer version.
+ */
+export type StoryBlock =
+  /** A muted eyebrow, and the start of a section. Every one of them opens the
+   *  same gap — see gapAbove in components/project-story. */
+  | { kind: "section"; title: string }
+  /** The section's claim: medium, at full strength. */
+  | { kind: "lead"; text: string }
+  /** Body copy under it. */
+  | { kind: "text"; text: string }
+  /** What the old model cost, three figures across. */
+  | { kind: "stats"; items: Metric[] }
+  /** The case's headline numbers. Reads `results` off the project rather than
+   *  restating them, so the page and the assistant can't drift apart. */
+  | { kind: "metrics" }
+  /** A numbered run that stays inside its section. */
+  | { kind: "steps"; items: { title: string; text: string }[] }
+  /** One numbered item on its own, so its figure can follow it. */
+  | { kind: "step"; n: string; title: string; text: string }
+  /** Two things tested, side by side. */
+  | { kind: "comparison"; columns: { title: string; signals: Signal[] }[] }
+  /** A figure at the gallery's width — the site's own media tile and caption. */
+  | { kind: "figure"; media: MediaItem }
+  /** The case's one diagram: the operating model, before and after. */
+  | { kind: "flow"; rows: FlowRow[]; caption: string };
 
 export type Project = {
   slug: string;
@@ -81,10 +152,42 @@ export type Project = {
   solution: string;
   process: ProcessStep[];
   results: Metric[];
-  /** Media shown in the gallery at the end of the case study. */
+  /** Media shown in the gallery at the end of the case study. A case that
+   *  tells its story in blocks places its own figures inline and leaves this
+   *  empty — see `story`. */
   media?: MediaItem[];
+  /** What the home list's hover card shows. Defaults to `media[0]`, which is
+   *  the right answer for a case whose page ends in a gallery; a story case has
+   *  to name one, because its figures open on a diagram rather than a screen. */
+  preview?: MediaItem;
+  /** The case page, told as blocks. Replaces the fixed sections when present. */
+  story?: StoryBlock[];
   /** Set to false for projects that are still drafts. */
   published: boolean;
+};
+
+/* The Voice AI recording, named because it does two jobs: the figure inside the
+   case, and — with the caption dropped — the card the home list opens on hover.
+
+   Its `aspect` is the *content's* ratio rather than the file's. The clip was
+   letterboxed into 16:9 at capture — 18 black rows above the recording and 20
+   below — which the dark theme hid and the light one showed as two bands. Both
+   the figure and the hover card lay a clip out as `object-cover` on a stage of
+   this ratio, so declaring 680 rather than 720 makes the two of them crop the
+   bands off. 680, not 682: the bars aren't symmetric and cover crops evenly, so
+   the ratio has to be cut to the larger of the two.
+
+   The only clip here with a `poster`, because it's the one the hover card shows
+   and that card loads with `preload="none"` — without a still there's an empty
+   stage until 17MB of video arrives. The case's own figures autoplay with
+   `preload="auto"` and never need one. */
+const VOICE_AI: MediaItem = {
+  type: "video",
+  src: "/projects/ai-onboarding/voice-assistant.mp4",
+  poster: "/projects/ai-onboarding/voice-assistant-poster.jpg",
+  aspect: "1280 / 680",
+  sound: true,
+  alt: "The AI voice assistant walking a new company through its Get started checklist.",
 };
 
 export const projects: Project[] = [
@@ -143,68 +246,246 @@ export const projects: Project[] = [
       },
       { value: "4.9", label: "customer satisfaction with the onboarding" },
     ],
-    /* Three clips and one screenshot, in the design's order. Each `aspect` is
-       the asset's own pixel ratio, the same way the Jus AI case states its: the
-       stage takes that ratio and the media sits on it uncropped.
+    preview: VOICE_AI,
+    /* The case page, block by block, in the design's order.
 
-       The exception is the first clip. It was letterboxed into 16:9 at capture
-       — 18 black rows above the recording and 20 below — which the dark theme
-       hid and the light one showed as two bands. Both the tile and the home
-       page's hover card lay a clip out as `object-cover` on a stage of this
-       ratio, so declaring the *content's* ratio rather than the file's makes
-       the two of them crop the bands off. 680 rather than 682: the bars aren't
-       symmetric, and cover crops evenly, so the ratio has to be cut to the
-       larger of the two.
-
-       The screenshot is the design's `Detail` frame exported at 3x and cropped
-       to the screen itself. Figma bakes the canvas it sits on into any export
-       of it — #131313, opaque, alpha channel or not — so the first version
-       arrived with a black slab around the window that read as the ground on
-       the dark theme and as a hole on the light one. Cropped to the screen and
-       squared off at the corners, it takes `frame` like the Jus IA
-       screenshots: the neutral stage under it is the theme's rather than the
-       export's, and the border lands on the screen's own edge.
-
-       Only the first clip carries a `poster`. It's `media[0]`, which is what
-       the home page's hover card shows, and that card loads with
-       `preload="none"` — so without a still there's an empty stage until 17MB
-       of video arrives. The gallery's own tiles autoplay with `preload="auto"`
-       and never need one. */
-    media: [
+       Every figure states its media's own ratio in `aspect` and the stage the
+       design gives all of them in `stage` — 1024/534, which is what lands the
+       whole run at one height and makes it read as a column rather than as six
+       unrelated pictures. The two fields have to be separate because `aspect`
+       does double duty on a video: it cuts the video's own box, which
+       `object-cover` then fills, so a clip that borrowed the stage's ratio
+       would lose its sides to the crop. `stage` is a wide-layout luxury —
+       below `md` it's dropped and every figure takes the media's own ratio, so
+       the picture gets the whole column on a phone instead of spending a fifth
+       of it on empty bands. */
+    story: [
+      { kind: "section", title: "The problem" },
       {
-        type: "video",
-        src: "/projects/ai-onboarding/voice-assistant.mp4",
-        poster: "/projects/ai-onboarding/voice-assistant-poster.jpg",
-        aspect: "1280 / 680",
-        sound: true,
-        alt: "The AI voice assistant walking a new company through its Get started checklist.",
-        caption:
-          "We discontinued the AI voice assistant due to low adoption and high error rates revealed during testing.",
+        kind: "text",
+        text: "Factorial has historically been a sales-led business, with onboarding relying 100% on human specialists. As the company scaled, this model became increasingly difficult to sustain.",
       },
       {
-        type: "video",
-        src: "/projects/ai-onboarding/guided-setup.mp4",
-        aspect: "2208 / 1080",
-        alt: "The guided self-setup reading the interface and stepping the user through basic configuration.",
-        caption:
-          "To replace the voice, we created a self-guided AI setup that understands the UI and helps users navigate the setup process.",
+        kind: "lead",
+        text: "The onboarding model was becoming the bottleneck to growth.",
       },
       {
-        type: "image",
-        src: "/projects/ai-onboarding/get-started.png",
-        frame: true,
-        aspect: "725 / 413",
-        alt: "Factorial's Get started page: the left nav beside a progress bar reading 0 of 10 modules completed, a Basic configuration card with Add people expanded over five more setup tasks, and Module configuration locked below it.",
-        caption:
-          "Get started page — I've built a get started page to concentrate all tasks in the same place.",
+        kind: "stats",
+        items: [
+          { value: "45+ days", label: "to onboard one customer" },
+          { value: "6h", label: "specialist work per customer" },
+          {
+            value: "Manual Excel",
+            label: "checklist per client, to track implementation",
+          },
+        ],
+      },
+
+      { kind: "section", title: "The signal" },
+      {
+        kind: "lead",
+        text: "I immersed myself in the onboarding process, joining specialist sessions and observing customers firsthand to understand where the experience was breaking.",
       },
       {
-        type: "video",
-        src: "/projects/ai-onboarding/onboarding-intro.mp4",
-        aspect: "2208 / 1080",
-        alt: "The onboarding intro, customisable with AI.",
+        kind: "steps",
+        items: [
+          {
+            title: "Customers lacked visibility",
+            text: "Customers didn't know what was happening, what they needed to do, or when onboarding would be complete.",
+          },
+          {
+            title: "Working rules were difficult to translate",
+            text: "Specialists had to turn each company's unique working rules into complex system configurations.",
+          },
+          {
+            title: "The process relied on specialist intervention",
+            text: "Customers couldn't complete onboarding independently, creating a dependency on specialist sessions throughout the process.",
+          },
+        ],
+      },
+
+      { kind: "section", title: "The opportunity" },
+      {
+        kind: "lead",
+        text: "We needed a faster onboarding process — and a different operating model.",
+      },
+      {
+        kind: "flow",
+        rows: [
+          {
+            label: "Before",
+            steps: [
+              { label: "Customer" },
+              { label: "Specialist" },
+              { label: "Systems" },
+              { label: "Specialist" },
+              { label: "Customer" },
+            ],
+          },
+          {
+            label: "After",
+            active: true,
+            steps: [
+              { label: "Customer" },
+              { label: "AI orchestration + onboarding skill", key: true },
+              { label: "AI agents" },
+              { label: "Specialist when needed" },
+            ],
+          },
+        ],
         caption:
-          "Onboarding intro + customizable with AI — onboarding is the first impression of a product, so the design should shine.",
+          "The shift: from a relay through specialists to an orchestration the customer drives.",
+      },
+
+      { kind: "section", title: "Exploration" },
+      {
+        kind: "lead",
+        text: "We launched our first MVP to test the new onboarding experience with customers.",
+      },
+      { kind: "text", text: "The MVP combined two ideas:" },
+      {
+        kind: "step",
+        n: "01",
+        title: "Get Started",
+        text: "A checklist to give customers visibility and guide them through setup.",
+      },
+      {
+        kind: "figure",
+        media: {
+          type: "image",
+          src: "/projects/ai-onboarding/get-started-v1.png",
+          frame: true,
+          aspect: "2224 / 1276",
+          stage: "1024 / 534",
+          alt: "Factorial's first Get started page: a progress bar reading 0 of 10 modules completed, a Core card whose first task — how to create a legal entity — comes with a guide video and five more setup tasks under it, then a run of locked modules below the line 'Complete these mandatory steps first to unlock the rest.'",
+          caption:
+            "Get Started — the first MVP was based on a simple setup checklist to configure your account, connected to the help center and supporting videos.",
+        },
+      },
+      {
+        kind: "step",
+        n: "02",
+        title: "Voice AI",
+        text: "A voice AI agent orchestrator used an onboarding skill to guide customers through complex settings directly in the UI.",
+      },
+      {
+        kind: "figure",
+        media: {
+          ...VOICE_AI,
+          stage: "1024 / 534",
+          caption:
+            "Voice AI — the first MVP was a voice framework connected with our AI system that reads the interface and guides the user through a red cursor on screen.",
+        },
+      },
+
+      { kind: "section", title: "What we learned" },
+      { kind: "lead", text: "The checklist worked. Voice didn't." },
+      {
+        kind: "comparison",
+        columns: [
+          {
+            title: "Get Started",
+            signals: [{ trend: "up", label: "Strong engagement" }],
+          },
+          {
+            title: "Voice AI",
+            signals: [
+              { trend: "down", label: "Low engagement" },
+              { trend: "down", label: "High error rate" },
+            ],
+          },
+        ],
+      },
+      {
+        kind: "text",
+        text: "Testing showed the guidance system worked — the AI understood tasks and directed users correctly. The issue was the voice interface, not the guidance itself.",
+      },
+
+      { kind: "section", title: "Iteration" },
+      { kind: "lead", text: "We kept what worked — and made it scalable." },
+      {
+        kind: "text",
+        text: "Our second MVP combined the strongest parts of the first experiment:",
+      },
+      {
+        kind: "step",
+        n: "01",
+        title: "AI-guided system support",
+        text: "We kept the pointer system from Voice AI, but replaced voice with an AI system interface that reads the UI and guides customers with an on-screen cursor.",
+      },
+      {
+        kind: "figure",
+        media: {
+          type: "video",
+          src: "/projects/ai-onboarding/guided-setup.mp4",
+          aspect: "2208 / 1080",
+          stage: "1024 / 534",
+          alt: "The AI-guided system support reading the interface and moving an on-screen cursor through basic configuration.",
+          caption:
+            "The system is connected with Factorial AI “One” and developed to guide customers through the process.",
+        },
+      },
+      {
+        kind: "step",
+        n: "02",
+        title: "A simpler Get Started",
+        text: "We simplified Get Started based on what customers actually used. We removed low-engagement videos and the Help Center link, and moved optional tasks later — making it easier to scale globally.",
+      },
+      {
+        kind: "figure",
+        media: {
+          type: "image",
+          src: "/projects/ai-onboarding/get-started.png",
+          frame: true,
+          aspect: "2175 / 1239",
+          stage: "1024 / 534",
+          alt: "The simplified Get started page: the left nav beside a progress bar reading 0 of 10 modules completed, a Basic configuration card with Add people expanded over five more setup tasks, and Module configuration locked below it.",
+          caption:
+            "New Get Started screen with a few steps displayed, providing clearer guidance and better understanding of the process.",
+        },
+      },
+      {
+        kind: "step",
+        n: "03",
+        title: "An onboarding intro animation",
+        text: "We introduced a short animation at the start of onboarding to create a “wow” moment and make the first interaction feel more approachable.",
+      },
+      {
+        kind: "figure",
+        media: {
+          type: "video",
+          src: "/projects/ai-onboarding/onboarding-intro.mp4",
+          aspect: "2208 / 1080",
+          stage: "1024 / 534",
+          alt: "The onboarding intro animation playing on first login.",
+          caption:
+            "The onboarding intro animation is the first thing users see after logging in, creating a sense of wow effect and a strong first impression.",
+        },
+      },
+      {
+        kind: "step",
+        n: "04",
+        title: "A personalized onboarding start with AI",
+        text: "We used Factorial's AI to customize each customer's onboarding, tailoring steps from their first interaction and introducing the AI system early.",
+      },
+      {
+        kind: "figure",
+        media: {
+          type: "video",
+          src: "/projects/ai-onboarding/personalized-start.mp4",
+          aspect: "2208 / 1080",
+          stage: "1024 / 534",
+          alt: "A short conversation with Factorial's AI shaping the customer's onboarding path before the Get started page.",
+          caption:
+            "A co-creation experience with Factorial's AI system tailors each customer's onboarding path.",
+        },
+      },
+
+      { kind: "section", title: "Results" },
+      { kind: "metrics" },
+      {
+        kind: "text",
+        text: "The impact was clear: enabling Factorial to scale strategically, onboarding more customers without increasing specialist headcount while keeping customers highly satisfied.",
       },
     ],
     published: true,
@@ -416,6 +697,13 @@ export function problemText(problem: Problem): string {
   return [problem.lead, ...problem.parts.map((p) => `${p.title}: ${p.body}`)].join(
     " ",
   );
+}
+
+/** What the home list hovers. A case that ends in a gallery leads with the
+ *  piece worth leading with, so the gallery's first item is the card; a case
+ *  that places its figures inline names its own (see Project.preview). */
+export function previewMedia(project: Project): MediaItem | undefined {
+  return project.preview ?? project.media?.[0];
 }
 
 export function getProject(slug: string): Project | undefined {

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProjectMedia } from "@/components/project-media";
+import { ProjectStory } from "@/components/project-story";
 import { SiteNav } from "@/components/site-nav";
 import { SITE_LINKS } from "@/lib/nav";
 import { getProject, projects, type Problem } from "@/lib/projects";
@@ -50,17 +51,22 @@ export default async function ProjectPage({
 
   return (
     <main className="min-h-dvh px-6 pb-36 pt-20 sm:pt-[6.5rem]">
+      {/* The figure column, not the reading one. A case that tells its story
+          in blocks puts figures between them at this width, so the article has
+          to be as wide as its widest child and every run of copy inside it
+          narrows itself back to the 39rem measure. For a case without a story
+          that's every child, and the page renders exactly as it did. */}
       <article
         id="about"
-        className="animate-rise mx-auto w-full max-w-[39rem] scroll-mt-24"
+        className="animate-rise mx-auto w-full max-w-[64rem] scroll-mt-24"
       >
-        <h1 className="text-balance text-2xl font-medium leading-tight tracking-tight sm:text-[1.875rem]">
+        <h1 className="mx-auto w-full max-w-[39rem] text-balance text-2xl font-medium leading-tight tracking-tight sm:text-[1.875rem]">
           {project.headline}
         </h1>
 
         {/* Credits run inline under the title and wrap on their own — the four
             short ones share a line and Team drops to the next. */}
-        <dl className="mt-12 flex flex-wrap gap-3 text-sm leading-5">
+        <dl className="mx-auto mt-12 flex w-full max-w-[39rem] flex-wrap gap-3 text-sm leading-5">
           <Resource label="Company">
             {project.url ? (
               <a
@@ -83,13 +89,18 @@ export default async function ProjectPage({
           ) : null}
         </dl>
 
-        <div className="mt-12 space-y-12">
-            {!project.published ? (
-              <p className="rounded-lg border border-border px-4 py-3 text-sm text-muted">
-                This case study is still a draft.
-              </p>
-            ) : null}
+        {!project.published ? (
+          <p className="mx-auto mt-12 w-full max-w-[39rem] rounded-lg border border-border px-4 py-3 text-sm text-muted">
+            This case study is still a draft.
+          </p>
+        ) : null}
 
+        {project.story ? (
+          <div className="mt-12">
+            <ProjectStory story={project.story} results={project.results} />
+          </div>
+        ) : (
+          <div className="mx-auto mt-12 w-full max-w-[39rem] space-y-12">
             <Section title="The problem">
               <ProblemStatement problem={project.problem} />
             </Section>
@@ -143,7 +154,8 @@ export default async function ProjectPage({
                 ))}
               </dl>
             </Section>
-        </div>
+          </div>
+        )}
       </article>
 
       {hasMedia ? (
