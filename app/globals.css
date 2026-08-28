@@ -409,8 +409,8 @@ body:has([data-case-preview="open"]) .preview-scrim {
 }
 
 /* Paint only. The sweep itself is `animate-shimmer`, kept separate so the nav's
-   button can hold the label unlit until it's hovered — otherwise a clipped,
-   invisible label would repaint every frame of every page. */
+   button can hold the label unlit until it's hovered — otherwise a hidden
+   label would repaint every frame of every page. */
 .shimmer-text {
   background-image: linear-gradient(
     90deg,

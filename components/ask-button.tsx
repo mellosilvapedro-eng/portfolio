@@ -26,139 +26,100 @@ import { askPedro } from "@/lib/ask";
    to move either — a still page plus one thing already breathing is what points
    at it.
 
-   Hover it (or focus it) and the button assembles: the surface fades up under
-   the mark, the box opens leftward into the design's 140 × 36, and the label
-   arrives saying what it does, its highlight sweeping the same way the mark's
-   does, only faster. The corners are 12px rather than the bar's full round —
-   this isn't in the bar, and a pill up here would read as a stray nav chip.
+   Hovered (or focused), two things happen and neither of them is a panel. The
+   mark's own square tints, so the thing you can click says where it ends; and
+   the label comes out from behind the mark and settles to its left, saying what
+   the glyph does, its highlight sweeping the same way the mark's does, only
+   faster. What doesn't arrive is a surface: no box growing, no edge, no ground
+   under the words. The corner's resting claim on the page is one glyph, and
+   answering a pointer by posting a panel there spends far more than the answer
+   is worth — the button isn't becoming a bigger control, it's telling you its
+   name. Two words on the page say that, and the page is already the right
+   colour behind them.
 
-   Why it's 36 and not the bar's 48: 48 was never a size, it was the bar's row
-   height, matched so the chip, the pill and ← read as one row of equal weights.
-   There's no row up here. The design puts the mark 19.5px in from the right edge
-   and 17px down from the top, and at 36 a box centred on `top-2 right-2` lands
-   its mark's centre 26px from each edge against the design's 27.75 / 25.25,
-   while leaving the surface 8px of ground for when it appears.
+   So the tint stops at the glyph. It is the site's own icon-hover ink —
+   `--foreground` at 6%, the value every icon button in the assistant uses — and
+   not the `--layer` + `--stroke` + shadow the old pill wore. That pair is for a
+   surface that has to lift off the page and hold something up; this holds
+   nothing up. It's a 36px square saying *here*, and a fill that darkens in light
+   and lightens in dark reads as exactly that in both, where a lifted card behind
+   one glyph, with the label naked beside it, would read as a chip that lost its
+   other half.
 
-   The opening is leftward, because pinned to the right edge rightward is off the
-   window — so the button is anchored `right-0` in its box and the row is
-   reversed, which puts the mark against that edge and spills the growing width
-   into the page instead.
+   Keeping it to that square is also what lets the hit area be honest. The box is
+   36px in every state — the mark's own box, and nothing more — so the tint and
+   the target are the same rectangle, and hover starts on the glyph you were
+   pointing at and ends when you leave it. There's no 140px of surface that grew
+   under the cursor and now has to be walked out of, and no frame where the thing
+   you aimed at has moved out from under you. The label hangs outside that box,
+   `pointer-events-none`, so it can't hold the state open from ground it never
+   earned.
 
-   That flip costs the reveal, and paying for it is what the delays below are.
-   In the bar the label was clipped by the growing edge and that *was* the
-   animation: mark on the left, so the clip swept away from the text's start and
-   uncovered it a letter at a time, left to right, the way it's read. Mirrored,
-   the same clip uncovers the word from its last letter backwards — "…g",
-   "…hing", "…anything" — and on the way out eats it from "A" forwards, which
-   doesn't read as a control closing, it reads as the text rewinding. So the clip
-   stops being the animation here. The three moves are sequenced instead: the
-   surface and the width go out together and the label lands behind them; coming
-   back the label goes first, then the width, and the surface holds until there's
-   nothing left to hold up. The clip never gets a partial word to show.
+   Why 36 and not the bar's 48: 48 was never a size, it was the bar's row height,
+   matched so the chip, the pill and ← read as one row of equal weights. There's
+   no row up here. The design puts the mark 19.5px in from the right edge and 17px
+   down from the top, and at 36 a box centred on `top-2 right-2` lands its mark's
+   centre 26px from each edge against the design's 27.75 / 25.25.
 
-   Why the odd nesting: the wrapper holds a fixed 36px, and the button is
-   absolute inside it, so opening overflows the box rather than moving the mark.
-   The mark must not drift out from under the cursor pointing at it — the one
-   thing this animation must not do. It's also why the mark lives in its own 36px
-   box: fixed width, so it stays put as the pill grows past it.
+   Why the label goes left: pinned to the right edge, rightward is off the
+   window. `right-full` hangs it off the box's left edge, and `mr-2.5` is what
+   holds it clear of it.
+
+   That margin only became necessary when the tint did. Untinted, the box's edge
+   was invisible and the only thing the eye measured was letters-to-glyph — which
+   the 36px box already paid for, out of the 9.75px of inset it keeps around a
+   16.5px mark. Tinted, that edge is a drawn boundary a few px from the final
+   't', and 9.75px of air the eye can't see doesn't stop the word from looking
+   welded to the square. So the gap is stated: 10px, the inset's own value, which
+   puts the same air outside the tint as there is inside it and leaves the glyph
+   centred in one continuous gutter rather than crowding one side of it.
 
    Positioning comes from the caller (components/site-nav), which is also where
    it fades out while the assistant is open — it's already answering.
    ──────────────────────────────────────────────────────────────────────── */
 
-/* The open width, and the only magic number here — a button can't transition to
-   `max-content`, so the target has to be stated. It's the design's own box, and
-   every part of it is a number the design gives: a 36px square for the mark, 88
-   of label (14px Inter Medium — the nav links' size, since this is still that
-   row's voice), 16 of leading room. One number covers both copies: "Ask
-   anything" and "Ask about it" land within a few px of each other, and slack
-   shows up as extra padding, which is the harmless failure. Any label much
-   longer than these wants a bigger number, not a longer word. */
-const OPEN = "8.75rem"; /* 140px = 36 + 88 + 16 */
-
-/* Opening is the flourish and closing is just getting out of the way, so the
-   durations are asymmetric. The trick is which state holds which: `hover:` is
-   in effect while opening, and the base value is what's left to run the
-   collapse. Both are under 300ms, and `ease-out-strong` front-loads them hard
-   enough that the pill is visually most of the way open in the first 90ms.
-
-   `flex-row-reverse` is what aims it: main-start becomes the right edge, so the
-   mark sits there, the label lays out to its left, and the width the button
-   gains is revealed on the left rather than the right.
+/* The button is only ever the mark's box, so it carries the tint itself rather
+   than fading a sheet in under the content the way the pill's ground had to:
+   there is nothing here for a background to cover, and a background-colour
+   transitions on its own perfectly well.
 
    The lists are per-property, in the order `transition-property` names them —
-   width first, transform second. Only the width waits: it holds 100ms on the way
-   back so the label is already gone before the edge starts eating it, and takes
-   none on the way out because there the label is the one that waits. The
-   transform is the press, and a press that answers late isn't a press, so its
-   delay is zero in every state. */
+   fill first, transform second. The fill takes the label's timing exactly, in
+   over 200ms and out over 100, so the two read as one thing arriving and one
+   thing leaving rather than as a square and a word that happen to overlap.
+   (`hover:` is in effect while arriving, so the base value is the one that runs
+   the exit.) The transform is the press, and a press that answers late isn't a
+   press, so it holds 150 in every state. */
 const SURFACE = [
-  "group absolute right-0 top-0 flex h-9 w-9 flex-row-reverse items-center",
-  "overflow-hidden rounded-[12px]",
-  "transition-[width,transform] ease-out-strong duration-[200ms,150ms] delay-[100ms,0ms]",
-  "hover:w-[var(--open-w)] hover:duration-[300ms,150ms] hover:delay-[0ms,0ms]",
-  "focus-visible:w-[var(--open-w)] focus-visible:duration-[300ms,150ms] focus-visible:delay-[0ms,0ms]",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nav-fg)]/25",
+  "group absolute right-0 top-0 grid h-9 w-9 place-items-center rounded-[12px]",
+  "transition-[background-color,transform] ease-out-strong duration-[100ms,150ms]",
+  "hover:bg-foreground/[0.06] hover:duration-[200ms,150ms]",
+  "focus-visible:bg-foreground/[0.06] focus-visible:duration-[200ms,150ms]",
   "active:scale-[0.97]",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--nav-fg)]/25",
 ].join(" ");
 
-/* The ground, as its own layer rather than a class on the button, because it has
-   to arrive and leave rather than simply be there: a background, a shadow and an
-   outline don't cross-fade if you toggle the class that carries them, and
-   putting opacity on the button itself would take the mark with it. So it's a
-   sheet under the content, and only it fades.
+/* It slides the last few pixels rather than appearing in place — it should read
+   as coming out from behind the mark, which means moving left, so the resting
+   offset is positive.
 
-   It is deliberately *not* `.nav-surface`, which is the bar's paint and only
-   works where the bar is. That surface is a translucent veil — white at 0.75 in
-   light — and a veil needs something behind it to veil. Over the page's #fcfcfc
-   it composites to about #fefefe: two points, which is nothing. The bar gets
-   away with it by floating over copy and images, where the same 0.75 reads
-   immediately; the dark theme gets away with it because rgba(24,24,24,0.75) over
-   #0a0a0a still lands ten points clear. An empty white corner has neither
-   excuse.
+   With no edge to clip it and no ground to wait for, the label answers on its
+   own and the old sequencing goes with them. What's left is the site's usual
+   asymmetry: arriving is the flourish and gets 200ms, leaving is just getting
+   out of the way and takes 100. `hover:` is in effect while arriving, so the
+   base value is the one that runs the exit.
 
-   So this one is painted rather than veiled, in the pair the site already uses
-   for a surface that has to lift off the page with nothing to help it: --layer
-   for the fill and --stroke for the hairline. That pair is a ~10-point step from
-   the ground in both themes by construction (#fcfcfc → #f2f2f2, #0a0a0a →
-   #151515), which is exactly the separation the veil was failing to deliver in
-   one of them. It's also the assistant rail's own surface — fitting, for the
-   button that opens it. The nav's shadow stays: the lift is the same lift.
-
-   Its timing is the width's, exactly: in fast and immediately, out only once the
-   box has finished shrinking back to the mark. That last part is the point — a
-   ground that left first would show a label and a naked mark collapsing in open
-   air. */
-const GROUND = [
-  "absolute inset-0 rounded-[12px] bg-layer ring-1 ring-stroke",
-  "shadow-[var(--nav-shadow)]",
-  "opacity-0 transition-opacity ease-out-strong duration-200 delay-100",
-  "group-hover:opacity-100 group-hover:duration-150 group-hover:delay-0",
-  "group-focus-visible:opacity-100 group-focus-visible:duration-150",
-  "group-focus-visible:delay-0",
-].join(" ");
-
-/* Slides the last few pixels rather than appearing in place — it should read as
-   coming out from behind the mark, which now means moving left, so the resting
-   offset is positive where the bar's version was negative.
-
-   It doesn't run ahead of the width; it takes turns with it. Opening, it waits
-   150ms — by which point `ease-out-strong` has the pill most of the way out —
-   and lands with it. Closing, it has no delay at all and only 100ms to spend, so
-   the word is gone well before the edge that would have clipped it reaches it.
-   Out fast, in late: the asymmetry is the same one the width has, pointed the
-   other way. */
+   Vertical centring is the flex box rather than a `-translate-y-1/2`, which
+   would have to share the transform with the slide. */
 const LABEL = [
-  "relative shimmer-text whitespace-nowrap pl-4",
-  "text-[14px] font-medium leading-[21px]",
+  "pointer-events-none absolute right-full top-0 mr-2.5 flex h-9 items-center",
+  "shimmer-text whitespace-nowrap text-[14px] font-medium leading-[21px]",
   "translate-x-1.5 opacity-0",
   "transition-[opacity,transform] duration-100 ease-out-strong",
   "group-hover:translate-x-0 group-hover:opacity-100",
-  "group-hover:duration-150 group-hover:delay-150",
-  "group-hover:animate-shimmer",
+  "group-hover:duration-200 group-hover:animate-shimmer",
   "group-focus-visible:translate-x-0 group-focus-visible:opacity-100",
-  "group-focus-visible:duration-150 group-focus-visible:delay-150",
-  "group-focus-visible:animate-shimmer",
+  "group-focus-visible:duration-200 group-focus-visible:animate-shimmer",
 ].join(" ");
 
 export function AskButton({
@@ -166,8 +127,10 @@ export function AskButton({
   prompt,
   className = "",
 }: {
-  /** The copy the pill opens to say. Pages that are about one thing name it
-      ("Ask about it"); the rest just offer ("Ask anything"). */
+  /** The copy the label says. Pages that are about one thing name it
+      ("Ask about it"); the rest just offer ("Ask anything"). Nothing measures
+      it any more — it lays out at its natural width — so a longer label is a
+      question of what reads well in the corner, not of a number to update. */
   label: string;
   prompt?: string;
   /** Where the 36px box sits. It must carry a position — the caller pins it to
@@ -187,20 +150,12 @@ export function AskButton({
         type="button"
         aria-label={label}
         onClick={() => (prompt ? askPedro(prompt) : setOpen(true))}
-        style={{ "--open-w": OPEN } as React.CSSProperties}
         className={SURFACE}
       >
-        <span aria-hidden="true" className={GROUND} />
-        {/* `relative` on both, so they paint over the ground. Among children of
-            one stacking context the positioned ones go last and in source order,
-            and the ground is positioned — without this it would cover the mark
-            it's meant to sit behind. */}
-        <span className="relative grid size-9 shrink-0 place-items-center">
-          {/* 16.5px, the size the design draws the corner mark at — and the size
-              of the glyph the theme toggle used to hold in this same spot, so
-              the corner's weight doesn't change hands. */}
-          <SparkMark className="size-[16.5px] text-[var(--nav-fg)]" />
-        </span>
+        {/* 16.5px, the size the design draws the corner mark at — and the size
+            of the glyph the theme toggle used to hold in this same spot, so
+            the corner's weight doesn't change hands. */}
+        <SparkMark className="size-[16.5px] text-[var(--nav-fg)]" />
         <span className={LABEL}>{label}</span>
       </button>
     </div>
