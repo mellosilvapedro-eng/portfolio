@@ -228,8 +228,9 @@ body {
 }
 
 /* The window's two edges, ramped into the ground — see components/site-shell.
-   Each one sits under a pinned control (the theme toggle up top, the floating
-   bar below), so copy scrolling past dissolves instead of colliding with it.
+   Each one sits under a pinned control (the assistant's mark up top, the
+   floating bar below), so copy scrolling past dissolves instead of colliding
+   with it.
 
    Painted as --background under a mask rather than an rgba ramp: the ground is
    one token per theme, and the mask's stops let the ramp ease. A straight linear

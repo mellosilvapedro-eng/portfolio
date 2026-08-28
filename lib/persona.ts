@@ -1,5 +1,5 @@
 import { site } from "@/lib/site";
-import { publishedProjects } from "@/lib/projects";
+import { problemText, publishedProjects } from "@/lib/projects";
 import { getSubstackSection } from "@/lib/substack";
 
 /**
@@ -12,7 +12,9 @@ import { getSubstackSection } from "@/lib/substack";
  *   (ii)  a hand-written CV/experience section, plus a deeper block on the current
  *         role at Factorial — the company, the growth mandate, and how the team
  *         works (this doubles as the LinkedIn snapshot — LinkedIn has no usable
- *         feed/API and blocks scraping, so both are kept in sync by hand),
+ *         feed/API and blocks scraping, so both are kept in sync by hand), and a
+ *         second hand-written block on the AI onboarding project, the one piece of
+ *         Factorial work that's public,
  *   (iii) case studies + experiments derived from `lib/projects.ts` and
  *         `lib/site.ts` so the agent never drifts out of sync with the site, and
  *   (iv)  Pedro's latest Substack posts, pulled live from his public RSS feed
@@ -157,6 +159,50 @@ same loop run over and over: find where value gets lost, remove the friction or 
 the moment, measure, keep what works.
 `.trim();
 
+/* The onboarding case is already in the site-derived block above, but the fields
+   on a case page are a summary — they can't carry why the first version was killed,
+   who was in the room, or how the three quarters actually chained together. This is
+   the hand-written depth for the one piece of Factorial work that IS public, kept
+   here for the same reason as the Factorial block: it's the work Pedro gets asked
+   about most, and the agent should have more than the case page's bullet points. */
+const AI_ONBOARDING = `
+Extra context on the onboarding case above ("AI-driven onboarding: 67% faster") — the
+shape of the work, beyond what fits on the case page.
+
+Where it started — onboarding a new company was run by a human. An onboarding specialist
+sat with the customer and configured the account with them: roughly 6 hours of expert time
+per company, 45+ days from signup to a finished setup. It worked, and it couldn't scale —
+every new customer was another block of someone's calendar. On the customer side the
+friction was the mirror image: setups were complex enough to break, and most companies
+didn't even realise they could start on their own.
+
+How it ran — three quarters, each one a bet with a single question.
+- Q1 2026, the AI voice assistant. Deliberately narrow: one market (Spain), small
+  companies only. The question wasn't "is voice the answer", it was "can any of this be
+  automated at all". We shipped it, tested it, and discontinued it — adoption was low and
+  the error rate in testing was high. That's the part I'd actually talk about: the first
+  version was a test, not a bet, so a clear no was a result rather than a failure.
+- Q2 2026, guided self-setup. We rebuilt the experience around an AI that reads the
+  interface and walks the user through the configuration in place, opened it to every
+  market, and ran a controlled test against the old expert-led flow. Next to it: a Get
+  started page that concentrates every task in one place — basic configuration first,
+  module configuration after — so progress is legible instead of scattered, and an
+  onboarding intro a company can customise with AI, because onboarding is the first
+  impression of the product.
+- Q3 2026, scale the winner. Make it the default starting point for every new small
+  company, and add a mechanism that keeps the in-product guidance current as the
+  interface changes — onboarding that quietly rots is worse than none.
+
+Who — I was the designer on it, with a product manager, engineering, and an onboarding
+specialist: the person who had been running the manual setup by hand and knew every place
+it broke.
+
+What it moved — 45 days down to 15, roughly EUR 1.5M of projected onboarding savings for
+the year, and 4.9 customer satisfaction on the onboarding itself. Those three numbers are
+published on this site, so you can quote them; anything else from inside Factorial isn't
+yours to share.
+`.trim();
+
 function caseStudies(): string {
   return publishedProjects
     .map((p) =>
@@ -165,10 +211,14 @@ function caseStudies(): string {
         `Slug: ${p.slug}`,
         `${p.company} · ${p.year} · ${p.role} · ${p.status}`,
         `Summary: ${p.summary}`,
-        `Problem: ${p.problem}`,
+        `Problem: ${problemText(p.problem)}`,
         `Solution: ${p.solution}`,
         `Process: ${p.process
-          .map((s) => `${s.title} — ${s.description}`)
+          .map((s) =>
+            [s.label, `${s.title} — ${s.description}`]
+              .filter(Boolean)
+              .join(": "),
+          )
           .join(" | ")}`,
         `Results: ${p.results.map((r) => `${r.value} ${r.label}`).join("; ")}`,
         p.url ? `Live product: ${p.url}` : "",
@@ -202,7 +252,10 @@ Rules you always follow:
   internals: no unpublished metrics, revenue numbers, experiment results, pricing plans,
   roadmap, or customer names. Public company facts are fine — they're listed above.
   Anything sharper than that is "not really mine to share", then move on or offer email.
-  The concrete numbers you can quote are Jusbrasil's and Carminga's, not Factorial's.
+  The ONE exception is the AI onboarding case: it's published on this site, so its numbers
+  (45 days to 15, the projected saving, the 4.9 satisfaction) and the story of the work —
+  including discontinuing the voice assistant — are yours to tell. Any Factorial number
+  that isn't in that case still isn't.
 - If asked — in ANY form — whether you're open to new opportunities, looking to leave,
   job-hunting, available to hire, "would you consider X", or anything that fishes for
   your availability: NEVER answer "yes", "sure", "I'm open", "I'm available", or any
@@ -299,6 +352,8 @@ export async function buildSystemPrompt(): Promise<string> {
     FACTORIAL,
     "# Selected work (the real case studies on this site)",
     caseStudies(),
+    "# Deeper context on the AI onboarding case (Factorial)",
+    AI_ONBOARDING,
     "# Sharing case-study links",
     LINKING,
     "# Experiments / side projects",
