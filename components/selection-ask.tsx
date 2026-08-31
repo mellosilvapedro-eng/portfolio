@@ -6,7 +6,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { usePathname } from "next/navigation";
 import { DOCKED, useChat } from "@/components/chat-provider";
 import { SparkMark } from "@/components/spark-mark";
-import { askPedro } from "@/lib/ask";
+import { quotePedro } from "@/lib/ask";
 import { SITE_LINKS } from "@/lib/nav";
 import { site } from "@/lib/site";
 
@@ -20,12 +20,20 @@ import { site } from "@/lib/site";
    dragging over it. So the CTA comes to the selection rather than making you
    carry the selection to the CTA.
 
+   What it does NOT do is ask for you. Pressing it opens the rail with the
+   passage attached to the composer and the caret waiting — the question is
+   the visitor's to write. This used to send a composed "what's the thinking
+   behind this?", which is one of the questions someone might have about a
+   highlighted line and not usually theirs; a quote plus an empty field asks
+   them instead of guessing.
+
    It's the same object as the nav's assistant button — same translucent chip,
    same sparkle with the same light rolling through it — just smaller, because
    it lands on top of body copy rather than sitting in a bar of 48px controls.
-   Pressing it sends one composed prompt through `pedro:ask` (lib/ask), which
-   is the same contract a case study's "Ask about it" button uses; the rail
-   springs open and answers in a fresh thread.
+   The passage travels on `pedro:quote` (lib/ask) — the sibling of the
+   `pedro:ask` contract Summarize on a case study uses (components/case-meta),
+   which does carry a finished question because that button knows what it's
+   asking.
 
    Portalled to <body>: the page sits inside the shell's `relative z-10`
    wrapper, which is a stacking context, so a pill rendered in place would be
@@ -39,10 +47,10 @@ const LABEL = "Ask about this";
     Three, not more: "Jusbrasil" and "A/B" are both fair questions. */
 const MIN_CHARS = 3;
 
-/** How much of the selection gets quoted into the prompt. Past a couple of
-    sentences the excerpt stops being a question and starts being a document —
-    the agent has the whole site in its system prompt anyway, so the quote only
-    has to be long enough to point at something. */
+/** How much of the selection travels. Past a couple of sentences the excerpt
+    stops being a quote and starts being a document — the agent has the whole
+    site in its system prompt anyway, so it only has to be long enough to point
+    at something. */
 const EXCERPT = 420;
 
 const GAP = 10; /* clearance between the pill and the selected line */
@@ -132,18 +140,11 @@ function origin(pathname: string): string {
     : `“${named}” case study`;
 }
 
-/**
- * What the visitor "typed". The excerpt is quoted so the agent answers *about*
- * the line rather than reading it as an instruction, and the page it came from
- * is named because half the lines worth highlighting are too short to identify
- * themselves ("measured, not guessed") — naming the case study gives the answer
- * somewhere to land.
- */
-function promptFor(text: string, pathname: string): string {
-  const quote =
-    text.length > EXCERPT ? `${text.slice(0, EXCERPT).trimEnd()}…` : text;
-
-  return `From your ${origin(pathname)}: “${quote}” — what's the thinking behind this?`;
+/** The selection as the composer will hold it: trimmed to something quotable,
+    and carrying the name of the page it came from. The agent gets both — see
+    `promptText` in components/ai-chat for how they fold into one turn. */
+function excerpt(text: string): string {
+  return text.length > EXCERPT ? `${text.slice(0, EXCERPT).trimEnd()}…` : text;
 }
 
 /** Enter is movement, so it gets the strong curve; leaving is just getting out
@@ -279,11 +280,12 @@ export function SelectionAsk() {
 
   function ask() {
     if (!spot) return;
-    // Drop the highlight first: the answer is about to arrive in the rail, and
-    // a stripe of inverted text left behind on the page reads as unfinished.
+    // Drop the highlight first: the passage is about to appear in the rail as
+    // a quote, and a stripe of inverted text left behind on the page is the
+    // same thing said twice.
     window.getSelection()?.removeAllRanges();
     hide();
-    askPedro(promptFor(spot.text, pathname));
+    quotePedro({ text: excerpt(spot.text), source: origin(pathname) });
   }
 
   if (!live) return null;

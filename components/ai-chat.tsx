@@ -13,7 +13,13 @@ import { useChat } from "@/components/chat-provider";
 import { LoadingState } from "@/components/loading-state";
 import { site } from "@/lib/site";
 import { publishedProjects } from "@/lib/projects";
-import { ASK_EVENT, type AskDetail } from "@/lib/ask";
+import {
+  ASK_EVENT,
+  QUOTE_EVENT,
+  type AskDetail,
+  type Quote,
+  type QuoteDetail,
+} from "@/lib/ask";
 import { scrollBehavior } from "@/lib/motion";
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -22,8 +28,12 @@ import { scrollBehavior } from "@/lib/motion";
    State is derived from the activities, not managed by hand.
    ──────────────────────────────────────────────────────────────────────── */
 
+/* A prompt keeps its quote beside the question rather than baked into it:
+   the transcript shows the passage as a quote and the typed question as the
+   message, which is how the visitor wrote it. `promptText` is what the model
+   receives — the two folded into one turn. */
 type Content =
-  | { type: "prompt"; body: string }
+  | { type: "prompt"; body: string; quote?: Quote }
   | { type: "response"; text: string; streaming?: boolean }
   | { type: "error"; body: string };
 
@@ -37,6 +47,20 @@ type Session = {
 };
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
+
+/** What a quoted prompt looks like to the agent. The passage is quoted and
+    attributed so it reads as the thing being asked about rather than as an
+    instruction, and the question comes last, where the answer starts. */
+function promptText(c: Extract<Content, { type: "prompt" }>): string {
+  return c.quote
+    ? `From your ${c.quote.source}: “${c.quote.text}”\n\n${c.body}`
+    : c.body;
+}
+
+/** Enter on an attached quote with nothing typed. The pill got the visitor
+    this far, so an empty question is a shrug, not a mistake — answer the
+    obvious one instead of doing nothing. */
+const QUOTE_FALLBACK = "What's the thinking behind this?";
 
 const uid = () => Math.random().toString(36).slice(2);
 const act = (content: Content): Activity => ({
@@ -381,6 +405,11 @@ export function AiChat() {
     return { sessions: [current], currentId: current.id };
   });
   const [input, setInput] = useState("");
+  /* A passage the visitor highlighted on the page, waiting for the question
+     they want to ask about it (components/selection-ask). Composer state, not
+     session state: it belongs to the message being written, and clears with
+     it. */
+  const [quote, setQuote] = useState<Quote | null>(null);
   const [busy, setBusy] = useState(false);
   // Contextual follow-up suggestions, tied to the session they belong to.
   const [suggest, setSuggest] = useState<{ sessionId: string; items: string[] }>({
@@ -406,6 +435,10 @@ export function AiChat() {
   const thinking = busy && lastType === "prompt"; // between the prompt and the first token
   // A session nobody has said anything in yet: welcome block + starter chips.
   const blank = current.activities.length === 0 && !busy;
+  // Something to send. An attached quote counts on its own — it carries the
+  // fallback question — so the send button lights up the moment one lands,
+  // before a word is typed.
+  const ready = (input.trim().length > 0 || !!quote) && !busy;
 
   // The home only exists on screen once the rail is open. Mounted, it's either
   // off-screen (undocked) or under the shell (docked), so an entrance keyed to
@@ -469,6 +502,28 @@ export function AiChat() {
     window.addEventListener(ASK_EVENT, onAsk);
     return () => window.removeEventListener(ASK_EVENT, onAsk);
   }, []);
+
+  // Highlighting a line on the page fires `pedro:quote`. Unlike an ask, this
+  // one has no question in it and doesn't start a thread: open, attach the
+  // passage to the composer, put the caret in it, and let the visitor write
+  // what they actually want to know. It lands in the current conversation
+  // rather than a fresh one — a quote is usually the next thing you ask
+  // about, not a change of subject, and the quote names its own source
+  // either way. The focus is deferred a frame: undocked the rail is still
+  // `inert` on the frame the event arrives, and focus inside an inert
+  // subtree is dropped on the floor.
+  useEffect(() => {
+    const onQuote = (e: Event) => {
+      const { quote: q } = (e as CustomEvent<QuoteDetail>).detail ?? {};
+      if (!q?.text) return;
+      setOpen(true);
+      setView("chat");
+      setQuote(q);
+      requestAnimationFrame(() => taRef.current?.focus());
+    };
+    window.addEventListener(QUOTE_EVENT, onQuote);
+    return () => window.removeEventListener(QUOTE_EVENT, onQuote);
+  }, [setOpen]);
 
   // Best-effort contextual follow-ups, fetched after an answer completes.
   // Guarded by turnSeq so a newer prompt's suggestions can't be clobbered by a
@@ -606,10 +661,16 @@ export function AiChat() {
     }
   }
 
+  // Any send consumes the attached quote — composer, starter chip or
+  // follow-up. One rule, and it never silently drops the passage the visitor
+  // went to the trouble of highlighting.
   function send(raw = input) {
-    const body = raw.trim();
+    const typed = raw.trim();
+    const q = quote;
+    const body = typed || (q ? QUOTE_FALLBACK : "");
     if (!body || busy) return;
     setInput("");
+    setQuote(null);
     setView("chat");
     turnSeq.current += 1;
     setSuggest({ sessionId: "", items: [] });
@@ -619,18 +680,24 @@ export function AiChat() {
     const history: ChatMessage[] = sessionNow.activities.flatMap(
       (a): ChatMessage[] =>
         a.content.type === "prompt"
-          ? [{ role: "user", content: a.content.body }]
+          ? [{ role: "user", content: promptText(a.content) }]
           : a.content.type === "response"
             ? [{ role: "assistant", content: a.content.text }]
             : [],
     );
-    history.push({ role: "user", content: body });
+    const content: Extract<Content, { type: "prompt" }> = q
+      ? { type: "prompt", body, quote: q }
+      : { type: "prompt", body };
+    history.push({ role: "user", content: promptText(content) });
 
     patch(id, (s) => ({
       ...s,
-      title: s.activities.length === 0 ? truncate(body) : s.title,
+      // A quote sent with nothing typed would title the thread with the
+      // fallback question, which is the same words every time — name it
+      // after the passage instead.
+      title: s.activities.length === 0 ? truncate(typed || q?.text || body) : s.title,
       updatedAt: Date.now(),
-      activities: [...s.activities, act({ type: "prompt", body })],
+      activities: [...s.activities, act(content)],
     }));
     setBusy(true);
     void streamReply(id, history);
@@ -640,6 +707,7 @@ export function AiChat() {
     abortRef.current?.abort();
     abortRef.current = null;
     setBusy(false);
+    setQuote(null);
     turnSeq.current += 1;
     setSuggest({ sessionId: "", items: [] });
     const now = Date.now();
@@ -827,11 +895,54 @@ export function AiChat() {
                 leaves the welcome block centred in the whole body. */}
             {blank && <Starters key={homeRun} onPick={(q) => send(q)} />}
             <div className="mx-3 rounded-[11px] border border-stroke bg-field px-3 py-2.5 transition-colors focus-within:border-foreground/25">
+              {/* The quote belongs inside the field, not above it: it is part
+                  of the message being written, and the box drawn around both
+                  is what says so. Height is animated rather than the whole
+                  chip fading in place — the composer grows and the caret
+                  moves down with it, which is the same motion typing into it
+                  produces. */}
+              <AnimatePresence initial={false}>
+                {quote && (
+                  <motion.div
+                    key="quote"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2, ease: EASE_OUT }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mb-2 flex items-start gap-2 border-l-2 border-foreground/15 pl-2.5">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] leading-none text-muted">
+                          From the {quote.source}
+                        </p>
+                        {/* Two lines, then an ellipsis. The whole passage is
+                            still what gets sent — this is a receipt for what
+                            you highlighted, not the thing itself. */}
+                        <p className="mt-1 line-clamp-2 text-[12px] leading-relaxed text-foreground/70">
+                          “{quote.text}”
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setQuote(null);
+                          taRef.current?.focus();
+                        }}
+                        aria-label="Remove quote"
+                        className="-mt-0.5 grid size-5 shrink-0 place-items-center rounded-full text-muted transition-colors hover:bg-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20"
+                      >
+                        <Close className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <textarea
                 ref={taRef}
                 rows={1}
                 value={input}
-                placeholder="Ask me anything…"
+                placeholder={quote ? "Ask about this…" : "Ask me anything…"}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -845,10 +956,10 @@ export function AiChat() {
                 <div className="flex-1" />
                 <button
                   onClick={() => send()}
-                  disabled={!input.trim() || busy}
+                  disabled={!ready}
                   aria-label="Send"
                   className={`grid h-7 w-7 place-items-center rounded-full transition-[background-color,color,scale] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 ${
-                    input.trim() && !busy
+                    ready
                       ? "bg-accent text-accent-fg hover:opacity-90"
                       : "bg-hover text-muted"
                   }`}
@@ -877,6 +988,15 @@ function ActivityRow({ content }: { content: Content }) {
         className="flex justify-end"
       >
         <div className="max-w-[85%] rounded-[14px] bg-foreground/[0.07] px-3.5 py-2.5 text-[13px] leading-relaxed text-foreground">
+          {/* Same rule as the composer, so the sent message is recognisably
+              the one that was written. Three lines here rather than two: the
+              bubble is the record, and there is no field under it competing
+              for the room. */}
+          {content.quote && (
+            <p className="mb-1.5 line-clamp-3 border-l-2 border-foreground/15 pl-2.5 text-[12px] leading-relaxed text-foreground/55">
+              “{content.quote.text}”
+            </p>
+          )}
           {content.body}
         </div>
       </motion.div>
@@ -1204,9 +1324,11 @@ function Plus() {
     </svg>
   );
 }
-function Close() {
+/* 16px by default, for the 32px controls in the header; the composer's quote
+   carries a smaller one, against 11px type. */
+function Close({ className = "h-4 w-4" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" {...stroke} strokeWidth={1.6} className="h-4 w-4">
+    <svg viewBox="0 0 16 16" {...stroke} strokeWidth={1.6} className={className}>
       <path d="M4 4l8 8M12 4l-8 8" />
     </svg>
   );
