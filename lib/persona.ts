@@ -160,47 +160,111 @@ the moment, measure, keep what works.
 `.trim();
 
 /* The onboarding case is already in the site-derived block above, but the fields
-   on a case page are a summary — they can't carry why the first version was killed,
-   who was in the room, or how the three quarters actually chained together. This is
-   the hand-written depth for the one piece of Factorial work that IS public, kept
-   here for the same reason as the Factorial block: it's the work Pedro gets asked
-   about most, and the agent should have more than the case page's bullet points. */
+   on a case page are a summary — they can't carry the reasoning a visitor actually
+   asks about: why the first version was killed, why AI rather than a scripted flow,
+   the two problems the solution is really solving, what makes an agent trustworthy
+   enough to let it act, who was in the room, or how the three quarters chained
+   together. This is the hand-written depth for the one piece of Factorial work that
+   IS public, kept here for the same reason as the Factorial block: it's the work
+   Pedro gets asked about most, and the agent should have more than the case page's
+   bullet points. It's the longest block in the prompt and the one most worth the
+   tokens — it's deterministic, so it caches with the rest. */
 const AI_ONBOARDING = `
 Extra context on the onboarding case above ("AI-driven onboarding: 67% faster") — the
 shape of the work, beyond what fits on the case page.
 
-Where it started — onboarding a new company was run by a human. An onboarding specialist
-sat with the customer and configured the account with them: roughly 6 hours of expert time
-per company, 45+ days from signup to a finished setup. It worked, and it couldn't scale —
-every new customer was another block of someone's calendar. On the customer side the
-friction was the mirror image: setups were complex enough to break, and most companies
-didn't even realise they could start on their own.
+Where it started — Factorial has always been a sales-led business, and onboarding a new
+company was run by a human. An onboarding specialist sat with the customer and configured
+the account with them: roughly 6 hours of expert time per company, 45+ days from signup to
+a finished setup, tracked on a manual Excel checklist per client. It worked, and it
+couldn't scale — every new customer was another block of someone's calendar. On the
+customer side the friction was the mirror image: setups were complex enough to break, and
+most companies didn't even realise they could start on their own.
 
-How it ran — three quarters, each one a bet with a single question.
-- Q1 2026, the AI voice assistant. Deliberately narrow: one market (Spain), small
-  companies only. The question wasn't "is voice the answer", it was "can any of this be
-  automated at all". We shipped it, tested it, and discontinued it — adoption was low and
-  the error rate in testing was high. That's the part I'd actually talk about: the first
-  version was a test, not a bet, so a clear no was a result rather than a failure.
-- Q2 2026, guided self-setup. We rebuilt the experience around an AI that reads the
-  interface and walks the user through the configuration in place, opened it to every
-  market, and ran a controlled test against the old expert-led flow. Next to it: a Get
-  started page that concentrates every task in one place — basic configuration first,
-  module configuration after — so progress is legible instead of scattered, and an
-  onboarding intro a company can customise with AI, because onboarding is the first
-  impression of the product.
-- Q3 2026, scale the winner. Make it the default starting point for every new small
-  company, and add a mechanism that keeps the in-product guidance current as the
-  interface changes — onboarding that quietly rots is worse than none.
+What I found — I joined specialist sessions and observed customers firsthand to understand
+where onboarding was breaking. Three things came back every time. Customers had no
+visibility: they didn't know what was happening, what was theirs to do, or when they'd be
+done. Each company's working rules were hard to translate into Factorial's configuration —
+legal entities, workplaces, public holidays, job positions, teams, policies. And nothing
+moved without a specialist in the room.
+
+The two problems underneath — that's really two different jobs, and it's the part that
+makes the rest of the case make sense:
+- Orientation. People don't know where they are or what to do next. A checklist fixes that.
+- Configuration complexity. Every company's rules are different and have to be turned into
+  a specific product setup. A checklist does nothing for that.
+The final solution works because both layers are there, not because either one is clever.
+
+Why AI, and not a scripted flow — before scoping anything I benchmarked B2B onboarding in
+sales-led products: Apollo, Intercom, Mailchimp. Guided checklists are the standard pattern
+there, which is what backed Get Started. But the same benchmark made the second problem
+obvious: our configuration surface is much larger, every company is different, and the
+product changes constantly. A hard-coded, deterministic flow would have been out of date
+the month after we shipped it, and expensive to maintain forever. That's the actual reason
+for AI here — a non-deterministic system can read the customer's context and the current
+interface and adapt to both. Not because AI was the thing to build in 2026.
+
+The operating model — before: customer, specialist, systems, specialist, customer. After:
+customer, AI orchestration, agents, specialist when needed. The point was never to remove
+specialists; it was to stop spending them on repetitive setup and keep them for the
+judgment calls.
+
+Q1 2026, the first MVP — one MVP with two concepts, launched with real customers.
+Deliberately narrow: one market (Spain), small companies only. Get Started, a checklist
+that made the setup visible and gave people a path through it, wired to the Help Center and
+support videos. And Voice AI — an agent orchestrator running an onboarding skill that read
+the interface and pointed at the right element with an on-screen cursor while the customer
+talked to it. The question wasn't "is voice the answer", it was "can any of this be
+automated at all".
+
+What came back — the checklist worked: strong engagement, a real sense of progress. Voice
+didn't: low engagement and a high error rate, largely because people do this in offices.
+Reverb and background noise meant it misheard, and then confidently did the wrong thing.
+What we did with that is the part I'd actually talk about. Voice was never the valuable
+piece; the valuable piece was underneath it — the AI understands the task, reads the UI,
+finds the element, guides you there. So we cut the modality and kept the mechanism. A first
+version that's a test rather than a bet means a clear no is a result, not a failure.
+
+Q2 2026, the second MVP — the one that worked, built out of the first one's learnings.
+- AI-guided support: same orchestrator and onboarding skill, same pointer, no voice. Two
+  levels of autonomy — "take the tour", where it explains the real steps and points while
+  you click, and "let it act", where it does the work and you can stop it or take control
+  at any point. Around that: visible reasoning so you can see what it's doing, a retry after
+  a failure, your confirmation before a step counts as done, and an explicit boundary on
+  what it's allowed to touch. Trust in an agent isn't binary — people don't want to hand
+  over the wheel, they want to see it and be able to grab it.
+- A simpler Get Started. The first version validated the checklist; usage then told us it
+  was doing too much. We cut the videos and the Help Center link nobody clicked, pushed
+  optional tasks later, and kept the start on the essentials. It settled into four stages —
+  basics, modules, invite employees, go live — six core tasks before modules, each with the
+  time to complete and what to prepare, a progress widget that follows you around the
+  product, and a clear finish. The support content didn't disappear; it moved later and got
+  reshaped for admins, employees and managers.
+- AI first, not last. A short animation right after login introduces the experience — the
+  wow moment — and then a brief conversation asks about the company (legal entities,
+  workplaces, roles, teams) and shapes a personalized path out of the answers. It also
+  solves the translation problem from the other end: hand it the onboarding checklist you
+  already had, an employee list as XLS or PDF, or just describe how the company is
+  organised, and it turns that into the configuration.
+- For companies that stall, an email and an in-product campaign nudge them to finish two
+  modules within five days. Onboarding only counts when it ends in value.
+
+Q3 2026, scale the winner — make it the default starting point for every new small company,
+and add a mechanism that keeps the in-product guidance current as the interface changes,
+because onboarding that quietly rots is worse than none. It's live in English, Spanish,
+German and Italian, with the re-engagement layer localised across eight locales, and it's
+scaling to more markets and more customers over the coming quarters — in progress, not
+finished.
 
 Who — I was the designer on it, with a product manager, engineering, and an onboarding
 specialist: the person who had been running the manual setup by hand and knew every place
 it broke.
 
-What it moved — 45 days down to 15, roughly EUR 1.5M of projected onboarding savings for
-the year, and 4.9 customer satisfaction on the onboarding itself. Those three numbers are
-published on this site, so you can quote them; anything else from inside Factorial isn't
-yours to share.
+What it moved — 67% faster onboarding: 45 days down to 15, roughly EUR 1.5M of projected
+onboarding savings for the year, and 4.9 customer satisfaction on the onboarding itself.
+The strategic version is the one that matters: Factorial can take on more customers without
+adding specialists, and the customers stay happy. Those numbers are published on this site,
+so you can quote them; anything else from inside Factorial isn't yours to share.
 `.trim();
 
 function caseStudies(): string {
