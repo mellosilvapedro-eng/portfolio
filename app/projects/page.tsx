@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   description: site.projectsIntro[0],
 };
 
-const NAV = [...SITE_LINKS, { label: "Ask anything", ask: true as const }];
+const NAV = [...SITE_LINKS, { label: "Ask agent", ask: true as const }];
 
 /* The experiments, moved off home and given their own front door.
 

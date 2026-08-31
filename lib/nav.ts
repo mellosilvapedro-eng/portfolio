@@ -10,11 +10,14 @@ export type NavItem = {
   label: string;
   /** Route this item navigates to (a pill tab). */
   href?: string;
-  /** Opens the assistant. A string is sent as the opening prompt. Items marked
-      this way leave the pill and become the trailing assistant button — their
-      `label` is the copy it opens to say, so it changes with what the page can
-      be asked about. */
-  ask?: string | true;
+  /** Opens the assistant. Items marked this way leave the pill and become the
+      trailing corner button — their `label` is the copy it posts on hover, so it
+      changes with what the page can be asked about.
+
+      A flag rather than a prompt: it used to accept a string to ask on click,
+      which made one glyph behave differently per page. Asking a specific
+      question is now the case page's own Summarize button. */
+  ask?: true;
 };
 
 /** The site's three destinations, in the order the design has them. Every

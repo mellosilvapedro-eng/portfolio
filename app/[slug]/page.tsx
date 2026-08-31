@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { CaseMeta } from "@/components/case-meta";
 import { ProjectMedia } from "@/components/project-media";
 import { ProjectStory } from "@/components/project-story";
+import { SectionRail } from "@/components/section-rail";
 import { SiteNav } from "@/components/site-nav";
 import { SITE_LINKS } from "@/lib/nav";
-import { getProject, projects, type Problem } from "@/lib/projects";
+import {
+  getProject,
+  projects,
+  storySections,
+  type Problem,
+} from "@/lib/projects";
 
 export function generateStaticParams() {
   return projects.map((project) => ({ slug: project.slug }));
@@ -34,6 +41,8 @@ export default async function ProjectPage({
   if (!project) notFound();
 
   const hasMedia = !!project.media && project.media.length > 0;
+  /* Empty for a classic case, which is what keeps the rail off those pages. */
+  const sections = storySections(project.story);
   /* Whether the process is dated rather than counted. See the column below. */
   const dated = project.process.some((step) => step.label);
   /* The site's own pill, same as every other page. It used to be About /
@@ -41,13 +50,11 @@ export default async function ProjectPage({
      scrolling is already for. Where you might actually want to go from here is
      the rest of the site, so the bar says that instead, with ← to the timeline
      this case came from and the assistant to ask about it. */
-  const nav = [
-    ...SITE_LINKS,
-    {
-      label: "Ask about it",
-      ask: `Walk me through your "${project.title}" project at ${project.company}.`,
-    },
-  ];
+  /* The corner button opens the assistant and nothing more — the case's own
+     question is Summarize's, in the meta row above. The label is the site's,
+     not this page's: it used to name what this page could be asked about, but
+     one control that does one thing reads better under one name everywhere. */
+  const nav = [...SITE_LINKS, { label: "Ask agent", ask: true as const }];
 
   return (
     <main className="min-h-dvh px-6 pb-36 pt-20 sm:pt-[6.5rem]">
@@ -64,30 +71,15 @@ export default async function ProjectPage({
           {project.headline}
         </h1>
 
-        {/* Credits run inline under the title and wrap on their own — the four
-            short ones share a line and Team drops to the next. */}
-        <dl className="mx-auto mt-12 flex w-full max-w-[39rem] flex-wrap gap-3 text-sm leading-5">
-          <Resource label="Company">
-            {project.url ? (
-              <a
-                href={project.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-link hover:opacity-70"
-              >
-                {project.company}
-              </a>
-            ) : (
-              project.company
-            )}
-          </Resource>
-          <Resource label="Role">{project.role}</Resource>
-          <Resource label="Year">{project.year}</Resource>
-          <Resource label="Status">{project.status}</Resource>
-          {project.team ? (
-            <Resource label="Team">{project.team}</Resource>
-          ) : null}
-        </dl>
+        {/* Three facts and two actions on one line — see components/case-meta
+            for why Role and Team aren't among them. */}
+        <CaseMeta
+          company={project.company}
+          url={project.url}
+          year={project.year}
+          status={project.status}
+          title={project.title}
+        />
 
         {!project.published ? (
           <p className="mx-auto mt-12 w-full max-w-[39rem] rounded-lg border border-border px-4 py-3 text-sm text-muted">
@@ -164,6 +156,10 @@ export default async function ProjectPage({
         </div>
       ) : null}
 
+      {/* Outside the article: it's window furniture, pinned to the margin at
+          every scroll position, not part of the reading column. */}
+      <SectionRail sections={sections} />
+
       <SiteNav items={nav} back="/" />
     </main>
   );
@@ -190,21 +186,6 @@ function ProblemStatement({ problem }: { problem: Problem }) {
           <p>{part.body}</p>
         </div>
       ))}
-    </div>
-  );
-}
-
-function Resource({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex gap-2 leading-5">
-      <dt className="shrink-0 text-muted">{label}</dt>
-      <dd className="text-foreground">{children}</dd>
     </div>
   );
 }

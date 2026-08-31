@@ -111,6 +111,9 @@ export type StoryBlock =
   /** A muted eyebrow, and the start of a section. Every one of them opens the
    *  same gap — see gapAbove in components/project-story. */
   | { kind: "section"; title: string }
+  /** The line that sets up the claim — the sentence the design sets *above*
+   *  the lead rather than under it, a size down but at full strength. */
+  | { kind: "intro"; text: string }
   /** The section's claim: medium, at full strength. */
   | { kind: "lead"; text: string }
   /** Body copy under it. */
@@ -229,7 +232,7 @@ export const projects: Project[] = [
         label: "Q2 2026",
         title: "Guided self-setup AI-system",
         description:
-          "The AI voice was validated and discarded, so we rebuilt the whole experience around guided self-setup, opened it to all markets, and ran a controlled test against the old expert-led flow.",
+          "The AI voice was validated and discarded, so I rebuilt the whole experience around guided self-setup, opened it to all markets, and ran a controlled test against the old expert-led flow.",
       },
       {
         label: "Q3 2026",
@@ -339,15 +342,18 @@ export const projects: Project[] = [
 
       { kind: "section", title: "Exploration" },
       {
-        kind: "lead",
-        text: "We launched our first MVP to test the new onboarding experience with customers.",
+        kind: "intro",
+        text: "I launched our first MVP to test the new onboarding experience with customers.",
       },
-      { kind: "text", text: "The MVP combined two ideas:" },
+      {
+        kind: "lead",
+        text: "The MVP explored two complementary ideas: making progress visible and using AI to simplify complex configuration.",
+      },
       {
         kind: "step",
         n: "01",
         title: "Get Started",
-        text: "A checklist to give customers visibility and guide them through setup.",
+        text: "I explored a checklist-based experience to help customers understand what they needed to do and how far they were through onboarding.",
       },
       {
         kind: "figure",
@@ -366,7 +372,7 @@ export const projects: Project[] = [
         kind: "step",
         n: "02",
         title: "Voice AI",
-        text: "A voice AI agent orchestrator used an onboarding skill to guide customers through complex settings directly in the UI.",
+        text: "Factorial's configuration was too complex to cover with a fixed onboarding flow. I explored AI as a way to dynamically understand what customers were trying to configure and guide them through the UI.",
       },
       {
         kind: "figure",
@@ -402,16 +408,16 @@ export const projects: Project[] = [
       },
 
       { kind: "section", title: "Iteration" },
-      { kind: "lead", text: "We kept what worked — and made it scalable." },
+      { kind: "lead", text: "I kept what worked — and made it scalable." },
       {
         kind: "text",
-        text: "Our second MVP combined the strongest parts of the first experiment:",
+        text: "The second MVP combined the strongest parts of the first experiment:",
       },
       {
         kind: "step",
         n: "01",
         title: "AI-guided system support",
-        text: "We kept the pointer system from Voice AI, but the voice itself was replaced by an AI system interface that reads the UI and guides customers with an on-screen cursor.",
+        text: "I kept the pointer system from Voice AI, but the voice itself was replaced by an AI system interface that reads the UI and guides customers with an on-screen cursor.",
       },
       {
         kind: "figure",
@@ -429,7 +435,7 @@ export const projects: Project[] = [
         kind: "step",
         n: "02",
         title: "A simpler Get Started",
-        text: "We simplified Get Started based on what customers actually used. We removed low-engagement videos and the Help Center link, and moved optional tasks later — making it easier to scale globally.",
+        text: "I simplified Get Started based on what customers actually used. I removed low-engagement videos and the Help Center link, and moved optional tasks later — making it easier to scale globally.",
       },
       {
         kind: "figure",
@@ -448,7 +454,7 @@ export const projects: Project[] = [
         kind: "step",
         n: "03",
         title: "An onboarding intro animation",
-        text: "We introduced a short animation at the start of onboarding to create a “wow” moment and make the first interaction feel more approachable.",
+        text: "I introduced a short animation at the start of onboarding to create a “wow” moment and make the first interaction feel more approachable.",
       },
       {
         kind: "figure",
@@ -466,7 +472,7 @@ export const projects: Project[] = [
         kind: "step",
         n: "04",
         title: "A personalized onboarding start with AI",
-        text: "We used Factorial's AI to customize each customer's onboarding, tailoring steps from their first interaction and introducing the AI system early.",
+        text: "I used Factorial's AI to customize each customer's onboarding, tailoring steps from their first interaction and introducing the AI system early.",
       },
       {
         kind: "figure",
@@ -704,6 +710,33 @@ export function problemText(problem: Problem): string {
  *  that places its figures inline names its own (see Project.preview). */
 export function previewMedia(project: Project): MediaItem | undefined {
   return project.preview ?? project.media?.[0];
+}
+
+/** A section's anchor, derived from its title rather than authored.
+ *
+ *  Two things read this — the heading that carries the id and the rail that
+ *  links to it (components/section-rail) — so deriving it means they can't
+ *  disagree. Titles are short, human, and unique within a case, which is
+ *  exactly the shape that survives slugification.
+ */
+export function sectionId(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/** The case's sections in order, for the rail. Empty for a case with no
+ *  story, which is what keeps the rail off the classic pages. */
+export function storySections(
+  story?: StoryBlock[],
+): { id: string; title: string }[] {
+  if (!story) return [];
+  return story
+    .filter((block): block is { kind: "section"; title: string } =>
+      block.kind === "section",
+    )
+    .map((block) => ({ id: sectionId(block.title), title: block.title }));
 }
 
 export function getProject(slug: string): Project | undefined {

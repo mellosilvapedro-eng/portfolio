@@ -10,7 +10,7 @@ import { site } from "@/lib/site";
    the pill switches routes rather than scrolling to sections, so there's nothing
    here to point at but the career itself, and the experiments moved out to
    /projects where they get their own opening. */
-const NAV = [...SITE_LINKS, { label: "Ask anything", ask: true as const }];
+const NAV = [...SITE_LINKS, { label: "Ask agent", ask: true as const }];
 
 export default function Home() {
   return (

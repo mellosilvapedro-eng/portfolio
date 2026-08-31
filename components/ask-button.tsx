@@ -1,8 +1,7 @@
 "use client";
 
 import { useChat } from "@/components/chat-provider";
-import { SparkMark } from "@/components/spark-mark";
-import { askPedro } from "@/lib/ask";
+import { RobotMark } from "@/components/robot-mark";
 
 /* ────────────────────────────────────────────────────────────────────────
    The assistant's button.
@@ -19,8 +18,10 @@ import { askPedro } from "@/lib/ask";
    of the window, and the corner it now sits in is the top of that side.
 
    At rest it is the mark and nothing else. No chip, no ground, no edge — 16.5px
-   of sparkle sitting straight on the page, with the light rolling slowly through
-   its stroke. That's the whole resting state, and it's why the corner works: a
+   of robot sitting straight on the page, with the light rolling slowly through
+   its stroke. The glyph used to be the sparkle; it handed the corner over once
+   Summarize existed, because the two now mean different things — the sparkle
+   asks about the thing in front of you, this opens the conversation. That's the whole resting state, and it's why the corner works: a
    surface up there would be a second thing competing with the page for the eye,
    where a glyph is just the frame's own furniture. It doesn't wait to be hovered
    to move either — a still page plus one thing already breathing is what points
@@ -60,6 +61,15 @@ import { askPedro } from "@/lib/ask";
    no row up here. The design puts the mark 19.5px in from the right edge and 17px
    down from the top, and at 36 a box centred on `top-2 right-2` lands its mark's
    centre 26px from each edge against the design's 27.75 / 25.25.
+
+   The glyph inside it is 20px, up from the sparkle's 16.5. 16.5 was chosen to
+   match the size the theme toggle used to hold in this spot, so the corner's
+   weight wouldn't change hands — but the robot is a denser shape than a
+   sparkle. A sparkle is four points around empty space and reads large for its
+   box; a robot is an outlined rectangle with two eyes inside it, and at 16.5 the
+   eyes were about a pixel and a half tall, which is too small to read as eyes at
+   all, let alone to blink. 20 still leaves 8px of ground on every side of the
+   36px box.
 
    Why the label goes left: pinned to the right edge, rightward is off the
    window. `right-full` hangs it off the box's left edge, and `mr-2.5` is what
@@ -124,15 +134,13 @@ const LABEL = [
 
 export function AskButton({
   label,
-  prompt,
   className = "",
 }: {
-  /** The copy the label says. Pages that are about one thing name it
-      ("Ask about it"); the rest just offer ("Ask anything"). Nothing measures
-      it any more — it lays out at its natural width — so a longer label is a
+  /** The copy the label says. Every page passes the same words now ("Ask
+      agent") — the corner does one thing, so it says one thing. Nothing
+      measures it — it lays out at its natural width — so a longer label is a
       question of what reads well in the corner, not of a number to update. */
   label: string;
-  prompt?: string;
   /** Where the 36px box sits. It must carry a position — the caller pins it to
       the corner with `fixed` (components/site-nav) — because the button inside
       is absolute and resolves against it. Deliberately not defaulted to
@@ -149,13 +157,18 @@ export function AskButton({
       <button
         type="button"
         aria-label={label}
-        onClick={() => (prompt ? askPedro(prompt) : setOpen(true))}
+        /* One thing, everywhere: open the assistant. It used to send a page's
+           own prompt when it had one, so on a case study this glyph asked a
+           question and on every other page it opened an empty thread — same
+           glyph, two behaviours, and no way to tell which you'd get. The
+           question is Summarize's job now (components/case-meta), so the corner
+           does the one thing it can always do. */
+        onClick={() => setOpen(true)}
         className={SURFACE}
       >
-        {/* 16.5px, the size the design draws the corner mark at — and the size
-            of the glyph the theme toggle used to hold in this same spot, so
-            the corner's weight doesn't change hands. */}
-        <SparkMark className="size-[16.5px] text-[var(--nav-fg)]" />
+        {/* 20px — see the note above on why the robot needs more than the
+            sparkle's 16.5 did. */}
+        <RobotMark className="size-[20px] text-[var(--nav-fg)]" />
         <span className={LABEL}>{label}</span>
       </button>
     </div>

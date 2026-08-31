@@ -471,6 +471,48 @@ body:has([data-case-preview="open"]) .preview-scrim {
   animation: spark-sweep 2.8s linear infinite;
 }
 
+/* ── The robot's blink ─────────────────────────────────────────────────────
+   The corner's glyph is the robot now (components/robot-mark). The sparkle
+   didn't retire — it moved to the two controls that ask about a *particular
+   thing*: the selection pill, and Summarize on a case study. The sparkle means
+   "answer this", the robot means "open the conversation".
+
+   The robot is drawn rather than masked, so it can't borrow the sweep above,
+   and it doesn't want to: it blinks instead. One idle animation per glyph — a
+   gradient rolling through a robot that is also blinking is two things moving
+   in a corner whose whole job is to be quiet until pointed at.
+
+   The timing is a real blink rather than a symmetrical pulse. Lids snap shut
+   and open slower — 75ms down, 125ms back — and the whole thing happens once
+   every 5s, which is inside the 3-6s a human blinks at. A symmetrical
+   ease-in-out at, say, 400ms reads as a wink or a slow squint; this reads as a
+   blink you half-notice, which is the point. Held open for the other 4.8s so
+   the glyph is a still icon almost all of the time.
+
+   `transform-box: fill-box` is load-bearing: without it `transform-origin`
+   resolves against the SVG viewport and the eyes squash toward the canvas
+   corner instead of closing on themselves. `scaleY(0.08)` rather than 0 leaves
+   a hairline where the eye was — a closed eye is a line, and eyes that vanish
+   read as the glyph glitching. */
+.robot-eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: robot-blink 5s infinite;
+}
+
+@keyframes robot-blink {
+  0%,
+  94% {
+    transform: scaleY(1);
+  }
+  95.5% {
+    transform: scaleY(0.08);
+  }
+  98% {
+    transform: scaleY(1);
+  }
+}
+
 @keyframes spark-sweep {
   from {
     background-position: 150% 0;
@@ -737,6 +779,16 @@ html[data-splash="play"] .splash-page {
   }
   .animate-stream-in {
     animation: none;
+  }
+
+  /* The robot holds its eyes open. Redefining the keyframes rather than
+     switching the class off, same as `pixel-on` above and the sweep below, so
+     it freezes wherever the mark is used without this having to know where. */
+  @keyframes robot-blink {
+    0%,
+    100% {
+      transform: scaleY(1);
+    }
   }
 
   /* The sweep stops on a ramp rather than on a flat fill: the mark still reads

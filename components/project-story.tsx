@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import { MediaFigure } from "@/components/project-media";
-import type { FlowRow, Metric, Signal, StoryBlock } from "@/lib/projects";
+import { sectionId, type FlowRow, type Metric, type Signal, type StoryBlock } from "@/lib/projects";
 
 /** The reading column — 624px in the design. Figures run to the full 1024. */
 const COLUMN = "mx-auto w-full max-w-[39rem]";
@@ -48,7 +48,11 @@ function gapAbove(block: StoryBlock, prev?: StoryBlock): string {
     default:
       // Copy sits a line-height under more copy, and takes the wider break
       // where it picks up after a block of numbers or signals.
-      return prev.kind === "lead" || prev.kind === "text" ? "mt-3" : "mt-8";
+      return prev.kind === "lead" ||
+        prev.kind === "text" ||
+        prev.kind === "intro"
+        ? "mt-3"
+        : "mt-8";
   }
 }
 
@@ -93,11 +97,28 @@ function Block({
   results: Metric[];
 }) {
   switch (block.kind) {
+    /* The anchor the rail scrolls to (components/section-rail). `scroll-mt`
+       clears the floating nav, matching the article's own. */
     case "section":
       return (
-        <h2 className={`${COLUMN} ${className} text-sm font-medium text-muted`}>
+        <h2
+          id={sectionId(block.title)}
+          className={`${COLUMN} ${className} scroll-mt-24 text-sm font-medium text-muted`}
+        >
           {block.title}
         </h2>
+      );
+
+    /* The one piece of copy the design sets smaller than the body while leaving
+       it at full strength — it opens the section, so it reads as its first
+       sentence and not as an aside, which is the foreground it would lose at
+       `text`'s 80%. The 26px leading is the body's rather than its own: it sits
+       in a run of 16px copy and has to hold that rhythm when it wraps. */
+    case "intro":
+      return (
+        <p className={`${COLUMN} ${className} text-sm leading-6.5 text-foreground`}>
+          {block.text}
+        </p>
       );
 
     case "lead":
@@ -234,7 +255,7 @@ function Step({
 }) {
   return (
     <div className="flex gap-4">
-      <span className="w-[18px] shrink-0 text-sm leading-relaxed text-muted tabular">
+      <span className="w-[18px] shrink-0 text-sm leading-6.5 text-muted tabular">
         {n}
       </span>
       <div className="min-w-0">

@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 const REPO = "mellosilvapedro-eng/skills";
 const REPO_URL = `https://github.com/${REPO}`;
 
-const NAV = [...SITE_LINKS, { label: "Ask anything", ask: true as const }];
+const NAV = [...SITE_LINKS, { label: "Ask agent", ask: true as const }];
 
 const skills = [
   { name: "design-taste", description: "Design judgment for any interface." },

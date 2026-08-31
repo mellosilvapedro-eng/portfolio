@@ -132,7 +132,6 @@ export function SiteNav({
       {ask ? (
         <AskButton
           label={ask.label}
-          prompt={typeof ask.ask === "string" ? ask.ask : undefined}
           className={`fixed right-2 top-2 z-30 transition-[opacity,visibility] ease-drawer ${
             open
               ? "invisible pointer-events-none opacity-0 duration-100 delay-0"
