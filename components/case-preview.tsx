@@ -96,13 +96,12 @@ const ART_SCALE = MEDIA_H / ART_CARD_H;
  * consumers, so the card and the hole can't drift apart.
  */
 export function CasePreview({
-  media,
+  item,
   children,
 }: {
-  media?: MediaItem[];
+  item?: MediaItem;
   children: React.ReactNode;
 }) {
-  const item = media?.[0];
   const wrapper = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [open, setOpen] = useState(false);

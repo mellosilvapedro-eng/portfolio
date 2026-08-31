@@ -26,23 +26,47 @@ const MORPH = { type: "spring" as const, duration: 0.4, bounce: 0 };
  */
 const FADE = { duration: 0.22, ease: "easeOut" as const };
 
-const PANEL_SHADOW = "0 28px 72px -28px rgba(0,0,0,0.4)";
+/**
+ * The enlarged copy, off its scrim. One 72px cast was the whole shadow, so the
+ * panel's edge met the page at full strength and then stopped — a cut, not a
+ * falloff. Three layers instead, each roughly doubling the last's blur at a
+ * lower alpha: contact, mid, and a wide one that never quite lands. Same total
+ * ink, spread over a ramp you can't find the end of.
+ */
+const PANEL_SHADOW = [
+  "0 2px 6px -2px rgba(0,0,0,0.18)",
+  "0 12px 28px -12px rgba(0,0,0,0.26)",
+  "0 36px 80px -32px rgba(0,0,0,0.34)",
+].join(", ");
 
 /**
  * Seats a framed tile on its stage. Per theme, because a single value can't
  * serve both grounds: pure black at 0.28 is a dark-ground number, and on the
  * light theme's near-white stage it reads as grime rather than depth (the same
  * note --nav-shadow carries in globals.css). Light gets the site's tinted ink
- * at a fraction of that — a 1px contact layer to land the edge, and a short
- * soft one under it. Kept lighter than instinct suggests: the screenshots are
- * white at their own edges, so the tile's border already draws the boundary and
- * anything more than a hint under it reads as a dark band rather than lift.
+ * at a fraction of that. Kept lighter than instinct suggests: the screenshots
+ * are white at their own edges, so the tile's border already draws the boundary
+ * and anything more than a hint under it reads as a dark band rather than lift.
  * Dark keeps real black, and more of it: on #0a0a0a a shadow has to be dense
  * before it registers as anything at all.
+ *
+ * Three layers per theme rather than two, and that's the whole shape of it: a
+ * 1px contact layer to land the edge, a mid cast, and a wide one at the lowest
+ * alpha of the three. Each roughly doubles the blur before it, and the negative
+ * spread grows with the blur so nothing gets a visible outline. The point isn't
+ * more shadow — the total ink is where it was — it's that the falloff has no
+ * step in it. Two layers end somewhere, and the eye finds where.
+ *
+ * The ramp stays inside the stage's ground — ~7px light, ~11px dark against
+ * the 14.94px the mobile stage actually leaves under the media — for the
+ * reason spelled out under VIDEO_SHADOW: the stage clips, so a cast that
+ * outruns it is cut flat rather than faded. A framed screenshot is the easier
+ * case either way: it carries a `border`, so the edge is drawn whatever the
+ * shadow does.
  */
 const TILE_SHADOW = [
-  "shadow-[0_1px_1px_rgba(17,17,24,0.02),0_6px_16px_-14px_rgba(17,17,24,0.045)]",
-  "dark:shadow-[0_1px_3px_rgba(0,0,0,0.22),0_16px_36px_-20px_rgba(0,0,0,0.38)]",
+  "shadow-[0_1px_2px_-1px_rgba(17,17,24,0.03),0_4px_9px_-5px_rgba(17,17,24,0.035),0_9px_20px_-12px_rgba(17,17,24,0.04)]",
+  "dark:shadow-[0_1px_3px_-1px_rgba(0,0,0,0.2),0_5px_12px_-6px_rgba(0,0,0,0.26),0_12px_26px_-14px_rgba(0,0,0,0.34)]",
 ].join(" ");
 
 /**
@@ -55,15 +79,68 @@ const TILE_SHADOW = [
  * image on a near-white stage — so that hint leaves its edge undefined and the
  * tile reads as flat.
  *
- * So: still light, just present. A 1px contact layer to seat the edge and one
- * short soft cast under it, at roughly three times TILE_SHADOW's light-theme
- * alpha — which lands near the value the hover card already uses for its own
- * video (see components/case-preview). Dark barely moves; real black on #0a0a0a
- * was already registering.
+ * So: still light, just present — roughly TILE_SHADOW's ink doubled, which
+ * lands near the value the hover card already uses for its own video (see
+ * components/case-preview). Four layers here rather than three, because a video
+ * carries the most weight of anything on the page and the ramp has room to be
+ * that much longer: contact, near, mid, and a wide one at the lowest alpha.
+ *
+ * The widest layer is held to 15/28/-17, and that ceiling isn't a round number
+ * — it's measured off the stage. The stage sets `overflow-hidden`, so a cast
+ * that outruns the ground doesn't spill and fade, it gets *cut*: a straight
+ * edge across the shadow, which is worse than the abrupt falloff any of this
+ * was meant to fix.
+ *
+ * The ground is smaller than the padding says, and it differs by engine — so
+ * the number below is only meaningful with its method attached.
+ *
+ * Measure to the nearest ancestor whose overflow isn't `visible` (the stage,
+ * which clips), NOT to the shadow element's parent (the trigger, which only
+ * pads). On WebKit those two edges don't coincide. At a 390px viewport, the
+ * 2208/1080 figure:
+ *
+ *   media -> trigger edge  16.02px   the padding box. Does not constrain.
+ *   media -> stage edge    14.94px   the clip. This is the real ground.
+ *
+ * They diverge when the trigger overruns the stage. The media is sized
+ * width-first (`aspect-ratio` + `maxWidth: "100%"`) and then reconciled
+ * against `maxHeight: "100%"`, and engine builds disagree on whether that
+ * clamps. Where it doesn't, the media comes out ~0.7px taller than the content
+ * box it should fit (150.375 against 149.688), content + 32px of padding
+ * exceeds the stage's height, and the stage clips the difference.
+ *
+ * Measured, same page and viewport and method:
+ *
+ *   system WKWebView   overrun 1.078   toClip 14.94
+ *   (Safari 26.5.2, WebKit 21624.2.5.11.8, macOS 26.5.2)
+ *   Blink              overrun 0.000   toClip 16.02
+ *   Playwright WebKit 26.5              same as Blink, to three decimals
+ *
+ * Don't read that as a vendor split or a version boundary — the two WebKits
+ * are the same major version and disagree, so it isn't old-engine behaviour
+ * that ages out. What separates them is unidentified. Size against the smaller
+ * number until it is.
+ *
+ * A cast reaches about `offset + blur/2 + spread` past the box, so 15/28/-17
+ * lands at 12px — just under 3px of margin against the tighter measurement,
+ * ~4px against the looser one, so it clears either. Widen any of these and
+ * check that number first; the dark ramp is the one that bites, since a dark
+ * ground needs density and density tempts distance.
+ *
+ * The structural end to this is to size the media height-first
+ * (`height: 100%; width: auto; max-width: 100%`), which makes the height
+ * definite against a definite content box and leaves engines nothing to
+ * disagree about. Not done here — it changes layout, not shadows.
+ *
+ * If it ever is: re-measure above `md` too, don't assume. There the stage is
+ * 1024/534 (1.917) while a clip is 2.044, so height-first hits `max-width`
+ * and the height comes back down off it — ~470 to ~469.6 — which moves the
+ * ground the numbers above are sized against. The whole reason this passage
+ * exists is that both of us assumed a box instead of measuring it.
  */
 const VIDEO_SHADOW = [
-  "shadow-[0_1px_2px_rgba(17,17,24,0.05),0_8px_20px_-10px_rgba(17,17,24,0.16)]",
-  "dark:shadow-[0_1px_3px_rgba(0,0,0,0.26),0_18px_40px_-20px_rgba(0,0,0,0.42)]",
+  "shadow-[0_1px_2px_-1px_rgba(17,17,24,0.05),0_3px_7px_-3px_rgba(17,17,24,0.05),0_8px_17px_-8px_rgba(17,17,24,0.055),0_15px_28px_-17px_rgba(17,17,24,0.06)]",
+  "dark:shadow-[0_1px_3px_-1px_rgba(0,0,0,0.26),0_3px_8px_-3px_rgba(0,0,0,0.28),0_7px_16px_-8px_rgba(0,0,0,0.3),0_14px_26px_-15px_rgba(0,0,0,0.32)]",
 ].join(" ");
 
 /** Viewport inset of the lightbox — must track the `p-4 sm:p-10` below. */
@@ -282,8 +359,13 @@ export function MediaZoom({ item }: { item: MediaItem }) {
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-foreground/25",
           // The framed variants float their media on the stage; a bare image
           // runs to the tile's own padding, and an animation brings its own.
+          //
+          // The step to the design's 32px waits for `md`, where the stage also
+          // widens (see MediaItem.stage). They used to move at different
+          // breakpoints, and in the 80px between them the media got smaller as
+          // the viewport got bigger — twice, once for each.
           isVideo || item.frame
-            ? "flex items-center justify-center p-4 sm:p-8"
+            ? "flex items-center justify-center p-4 md:p-8"
             : "",
         ]
           .filter(Boolean)
