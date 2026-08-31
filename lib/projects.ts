@@ -411,7 +411,7 @@ export const projects: Project[] = [
         kind: "step",
         n: "01",
         title: "AI-guided system support",
-        text: "We kept the pointer system from Voice AI, but replaced voice with an AI system interface that reads the UI and guides customers with an on-screen cursor.",
+        text: "We kept the pointer system from Voice AI, but the voice itself was replaced by an AI system interface that reads the UI and guides customers with an on-screen cursor.",
       },
       {
         kind: "figure",
