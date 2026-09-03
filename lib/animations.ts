@@ -3,6 +3,7 @@ import { CodeVerification } from "@/components/animations/code-verification";
 import { DeviceControl } from "@/components/animations/device-control";
 import { DeviceLastSwitch } from "@/components/animations/device-lastswitch";
 import { JusiaPaywall } from "@/components/animations/jusia-paywall";
+import { SeatPurchase } from "@/components/animations/seat-purchase";
 import { SegmentedToggle } from "@/components/animations/segmented-toggle";
 
 export type AnimationProps = {
@@ -29,6 +30,7 @@ export const ANIMATIONS: Record<string, ComponentType<AnimationProps>> = {
   "device-control": DeviceControl,
   "code-verification": CodeVerification,
   "device-lastswitch": DeviceLastSwitch,
+  "seat-purchase": SeatPurchase,
   "segmented-toggle": SegmentedToggle,
 };
 
@@ -43,7 +45,15 @@ export const ANIMATIONS: Record<string, ComponentType<AnimationProps>> = {
  * So the ceiling is per animation, and this is the one number to nudge.
  */
 export const ZOOM_MAX_WIDTH: Record<string, number> = {
-  "device-lastswitch": 560,
+  // Was 560, tuned for the sparse warning card alone — one illustration, one
+  // headline, one button. That frame now carries the seat card as well, and
+  // the denser of two cards sets the ceiling for both: at 560 the priced row
+  // and its breakdown come out larger here than in the figure whose whole
+  // subject they are.
+  "device-lastswitch": 520,
+  // Denser than the last-switch card but sparser than the session list: one
+  // priced row, a breakdown, and a button.
+  "seat-purchase": 520,
 };
 
 /** Applied to any animation without an entry above. */

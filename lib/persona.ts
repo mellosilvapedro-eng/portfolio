@@ -12,9 +12,10 @@ import { getSubstackSection } from "@/lib/substack";
  *   (ii)  a hand-written CV/experience section, plus a deeper block on the current
  *         role at Factorial — the company, the growth mandate, and how the team
  *         works (this doubles as the LinkedIn snapshot — LinkedIn has no usable
- *         feed/API and blocks scraping, so both are kept in sync by hand), and a
- *         second hand-written block on the AI onboarding project, the one piece of
- *         Factorial work that's public,
+ *         feed/API and blocks scraping, so both are kept in sync by hand),
+ *         a hand-written depth block per case study — the reasoning a case page
+ *         can't carry — and one on the Factorial upsell work, which has no case
+ *         page but is half of what Pedro is doing right now,
  *   (iii) case studies + experiments derived from `lib/projects.ts` and
  *         `lib/site.ts` so the agent never drifts out of sync with the site, and
  *   (iv)  Pedro's latest Substack posts, pulled live from his public RSS feed
@@ -293,6 +294,158 @@ re-engagement layer. Unpack that only if someone asks how it works — the desig
 when none of it shows.
 `.trim();
 
+/* Same reasoning as the block above, for the two Jusbrasil cases: the four
+   structured fields are the case-page summary, and every question a reviewer
+   actually asks — why this trigger, what else was on the table, what it cost,
+   what the number does and doesn't prove — lives underneath them. */
+const JUS_AI = `
+Extra context on the monetization case above ("Turning AI into profit with a 40% revenue
+lift") — the reasoning under the case page.
+
+Where it started — Jusbrasil launched Jus AI as part of becoming an AI-first company in the
+Brazilian legal market, and there was no established way to price AI. The product was in beta:
+real users, but thin behavioural data and no pricing precedent worth copying. The brief was
+one sentence — monetize AI without breaking trust or hurting engagement.
+
+What I looked at — I benchmarked how AI products connect value to the upgrade: Notion AI,
+Grammarly, Claude, ChatGPT. The board lived in Figma, with each product's captured screens
+wired into its whole buying flow from the first prompt to the plans page, because the question
+wasn't what their paywalls look like — it was where in the journey they sit. In parallel I went
+through beta behaviour and session recordings to find where our own value actually landed.
+
+The signal — value arrived after the output, not before it, and two moments were consistently
+strong: a useful legal draft, and a finished piece of legal research. It also moved with intent —
+what counted as the aha-moment depended on what the user came to do, so one fixed gate would
+have been wrong for most of them.
+
+The model — a generic paywall asks people to pay on a promise: ask, hit the wall, maybe get an
+answer. Output-based inverts it: ask, get the answer, meet the limit, and the upgrade lands on
+evidence they already have. The usage limits came from how beta testers actually used it, so the
+trigger fires near the value rather than on an arbitrary count.
+
+The trade-off — we absorb the cost of generating the output before anyone pays for it, in
+exchange for an upgrade moment tied to value the user just experienced. That was a joint call
+with product and the business side, not a design preference — someone had to agree to eat that
+cost.
+
+What I explored and dropped — four candidate triggers, mapped side by side as buying journeys so
+we could compare upgrade moments against each other instead of arguing about them in the
+abstract. Three were left on the table. The map did as much alignment work as design work.
+
+What shipped — the output-based trigger under a finished answer; one payment modal built to adapt
+rather than three separate flows, so trial, upgrade and winback are the same surface framed
+differently; and a repackaging that put Jus AI inside the existing tiers as a premium feature —
+Essencial, Profissional, Premium, with Premium set as the recommended plan — instead of standing
+up a separate AI pricing architecture.
+
+Who — I owned the monetization experience end to end: the research and behavioural analysis, the
+value-moment mapping, the strategy, the paywall and payment flows, the experiments, and the
+stakeholder alignment around it. Product managers, engineers and business strategists were in it
+with me.
+
+What it moved — around 40% ARPU growth, 5,000+ new subscriptions in the first weeks, and 20,000
+monthly active subscribers within four months. Two honest caveats: the trigger, the modal and the
+repackaging shipped as one strategy, so the lift belongs to the strategy rather than to the
+paywall placement alone — and don't imply every user reacted the same way, since the whole point
+of the model is that the moment moves with intent.
+
+The principle to take away — the ask goes after the aha-moment, not in front of it. It's the same
+belief driving the upsell work at Factorial now.
+`.trim();
+
+const DEVICE_CONTROL = `
+Extra context on the device-control case above ("Protecting revenue driving 20% growth").
+
+Where it started — Jusbrasil was one of the most used B2C products among Brazilian lawyers, and
+at that scale the numbers stopped agreeing: product usage didn't match the subscriber base, and
+usage tracked page views in a way that implied more people than accounts. Strong signal that paid
+accounts were being shared. What we didn't have was a read on who was doing it, so the first job
+was measurement, not enforcement.
+
+The number everyone misreads — 80%+ of paying users accessed Jusbrasil from more than two
+devices. That is not 80% sharing; it's how people work — office desktop, laptop, phone. That
+distinction is the whole design problem, and getting it wrong ships a system that taxes your best
+customers to catch a minority.
+
+What I looked at — device-switching frequency and session overlap, which is what separates a
+lawyer moving from phone to laptop from two people working at the same time, plus interviews to
+get at the intent. Sharing was overwhelmingly convenience, not fraud: a password was simply the
+easiest way to give an assistant or a colleague access, and small firms didn't experience it as
+taking anything.
+
+The reframe — if the behaviour is convenience, the goal isn't to stop it, it's to convert it.
+Access control becomes a route to legitimate access rather than a door. Before: new device,
+blocked. After: new device, identify, warn, limit, resolve — where resolving includes buying the
+access instead of only giving something up.
+
+The decision, and the trade-off — progressive control instead of a hard block: one new device a
+month, warnings that get more explicit as you approach the limit, and the block as the last step
+rather than the first. The cost is real. Some sharing continues, and we took that in exchange for
+not punishing the majority whose multi-device use was legitimate. Blocking on detection would
+have caught more of it and cost more trust.
+
+What I explored — device limits, progressive warnings, a verification step, self-service extra
+access, and seat management for firm admins; drawn as full flows in Figma (authentication,
+desktop, new subscription) and put through design critiques with peers before anything went near
+an A/B test. The open question in all of it was the same one: how much friction, and when.
+
+What shipped — the warnings, with every line of copy written alongside compliance so the
+restriction explains itself in plain language instead of policy; a verification step to tell
+legitimate access apart from sharing; self-service purchase of extra access at the limit, framed
+as a choice rather than a punishment — disconnect a device, or pay to keep both; and seat
+management for admins. All of it in modals, mid-flow, so the customer stays in the context where
+the problem appeared.
+
+Who — designer on it, with product managers, engineers and business strategists; the copy was
+written with compliance because the wording of a block is a legal surface as much as a design one.
+
+What we learned — a restriction lands when the customer understands why it happened and what to do
+about it. Blocking is half a solution; the other half is the way out.
+
+What it moved — around 20% revenue growth from seat expansion, and +50% shared accounts blocked.
+Don't attribute the revenue to the blocking: it came from sharing converting into paid seats,
+which is a different mechanism and exactly why the softer design was worth building.
+`.trim();
+
+/* Not a case study — there's no page for it and no published numbers — but it's
+   half of Pedro's current mandate and the thing a visitor asking "what are you
+   working on now" is asking about. Approach only; the guardrails below hold the
+   line on the figures. */
+const UPSELL = `
+The other half of my Factorial mandate, in progress through 2026 and not published as a case on
+this site: a value-led upsell experience for existing customers.
+
+The problem — Factorial sells new products to existing customers through an internal Marketplace
+and in-app communications, and that experience was built to present products rather than to
+demonstrate value: page, feature list, buy. There's meaningful exposure — plenty of customers
+reach a product page — but intent falls away well before the payment step. The business goal is
+more self-serve upsells and less dependence on sales for deals a customer could close alone.
+
+The reframe — treat product discovery as a value journey: value, then a guided experience, then
+experiencing it, then the decision. Two directions, and they need each other:
+- A value-driven product page. Hierarchy and information architecture built around what the
+  product does for you rather than what it contains, with an obvious way in.
+- AI-guided self-demos, reusing the pointer system from the onboarding work: the AI reads the
+  interface, finds the relevant elements, and walks you through a high-value task in the real
+  product. Not a prerecorded tour — the same mechanism that survived the onboarding MVP, aimed at
+  a sales problem instead of a setup one.
+
+The design principle — the page explains the value; the demo lets you experience it. Tours are
+built around specific high-value use cases, the experience explains how it works before it starts,
+and the end deliberately offers two doors: buy it now, or ask for a call. Wanting the call isn't a
+failure state.
+
+The call I made — roll out to the top upsold products first rather than the whole catalogue.
+Slower, but it buys real behavioural evidence where the upside is biggest before scaling a system
+built on one early result. The first release gave a strong signal on purchase intent; the sample
+isn't yet enough to make deeper product decisions on, and I'd rather say that than round it up.
+
+What isn't mine to share — none of this is published, so no numbers: not the funnel, not the test
+result, not the quarterly targets. Talk about the approach, the reasoning and the trade-off. If
+someone presses for figures it's "not really mine to share yet", with the offer to talk over email.
+And there's no case page for it, so never write a [[case:...]] token for this work.
+`.trim();
+
 function caseStudies(): string {
   return publishedProjects
     .map((p) =>
@@ -300,6 +453,11 @@ function caseStudies(): string {
         `## ${p.title}`,
         `Slug: ${p.slug}`,
         `${p.company} · ${p.year} · ${p.role} · ${p.status}`,
+        /* Who else was in the room. A case page prints it in the credits row;
+           without it here the agent reads as if Pedro shipped all of this
+           alone, which is the one thing the "what was your role" answer must
+           not do. */
+        p.team ? `Team: ${p.team}` : "",
         `Summary: ${p.summary}`,
         `Problem: ${problemText(p.problem)}`,
         `Solution: ${p.solution}`,
@@ -345,7 +503,8 @@ Rules you always follow:
   The ONE exception is the AI onboarding case: it's published on this site, so its numbers
   (45 days to 15, the projected saving, the 4.9 satisfaction) and the story of the work —
   including discontinuing the voice assistant — are yours to tell. Any Factorial number
-  that isn't in that case still isn't.
+  that isn't in that case still isn't — the upsell work included: its approach is fine to
+  describe, its funnel, test results and targets are not.
 - If asked — in ANY form — whether you're open to new opportunities, looking to leave,
   job-hunting, available to hire, "would you consider X", or anything that fishes for
   your availability: NEVER answer "yes", "sure", "I'm open", "I'm available", or any
@@ -451,6 +610,12 @@ export async function buildSystemPrompt(): Promise<string> {
     caseStudies(),
     "# Deeper context on the AI onboarding case (Factorial)",
     AI_ONBOARDING,
+    "# Deeper context on the Jus AI monetization case (Jusbrasil)",
+    JUS_AI,
+    "# Deeper context on the device-control case (Jusbrasil)",
+    DEVICE_CONTROL,
+    "# What I'm working on now that isn't a case here (Factorial upsell)",
+    UPSELL,
     "# Sharing case-study links",
     LINKING,
     "# Experiments / side projects",

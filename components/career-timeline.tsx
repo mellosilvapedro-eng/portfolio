@@ -1,20 +1,16 @@
-import Link from "next/link";
-import { CasePreview } from "@/components/case-preview";
-import { previewMedia, publishedProjects } from "@/lib/projects";
 import { site } from "@/lib/site";
 
-/* Experience and work as one thing.
+/* The career, and only the career.
 
-   They used to be two sections — a career list, then a flat list of case
-   studies — which asked the reader to hold a company in mind while scrolling to
-   find what was shipped there. Now each case study hangs off the job it came
-   out of, and the whole run is strung on a single rail: period on the left, a
-   dot on the line, the role and its work on the right.
+   It carried the case studies for a while — each one filed under the job it
+   came out of, so the reader never had to hold a company in mind while
+   scrolling. That worked, and it still put the work *inside* the CV. The design
+   splits them: the cases lead the page as their own dated list (see
+   components/selected-work), and this is what's left — period on the left, a dot
+   on the line, the role and what it was on the right.
 
-   The association is `company`, matched against `site.experience`. Nothing is
-   duplicated to make this layout work — a case study that names a company with
-   no matching job simply doesn't appear here, which is the right failure: the
-   fix is the data, not the view.
+   So nothing here reads lib/projects any more. The `company` string that used
+   to have to stay spelled the same in both files is free.
 
    ── The period sticks ────────────────────────────────────────────────────────
    Each period and its dot ride down with the scroll, park 96px from the top of
@@ -23,11 +19,12 @@ import { site } from "@/lib/site";
    sticky` is trapped inside its parent's box, so a sticky child of a cell that
    is exactly as tall as one entry owns the screen for exactly that entry, and
    the hand-off is the parent's bottom edge catching up. Travel distance is
-   `cellHeight − labelHeight`, which is why the 96px below each entry is load
+   `cellHeight − labelHeight`, which is why the 116px below each entry is load
    bearing rather than decoration — it's the runway. The design used to say 44px
-   there and the code carried 64 to make the short entries park rather than just
-   drift past; the design now says 96, which is more runway than any of them
-   need, so the hand-tuned number goes away.
+   there and the code carried a hand-tuned 64 to make the short entries park
+   rather than just drift past; the design says 116 now, and it needs to be
+   about that generous, because an entry is two lines shorter than it was with a
+   case list hanging off it — the runway is nearly all of what a row is now.
 
    Three things this depends on, each of which fails silently:
 
@@ -56,10 +53,10 @@ import { site } from "@/lib/site";
    the rail keeps the timeline reading as one.
 
    Stacked, the vertical beats are what carry the structure the columns carried,
-   so they step: 4px inside the entry, 8px under the period, 24px to the case
-   links, 48px to the next entry. The last is 96px on the desktop row because
-   there it is also the sticky runway — on a 390px screen that much empty space
-   is just scrolling, and 48 keeps the ladder roughly doubling.
+   so they step: 4px inside the entry, 8px under the period, 48px to the next
+   entry. The last is 116px on the desktop row because there it is also the
+   sticky runway — on a 390px screen that much empty space is just scrolling,
+   and 48 keeps the ladder roughly doubling.
 
    ── Column arithmetic ───────────────────────────────────────────────────────
    Left edge to the role heading: 112px period + 12 gap + 6px rail + 12 gap +
@@ -84,7 +81,6 @@ export function CareerTimeline() {
   return (
     <ol>
       {jobs.map((job, i) => {
-        const cases = publishedProjects.filter((p) => p.company === job.company);
         const isLast = i === jobs.length - 1;
 
         return (
@@ -143,15 +139,15 @@ export function CareerTimeline() {
 
             <div
               className={`col-start-2 row-start-2 min-w-0 sm:col-start-3 sm:row-start-1 sm:pl-3 ${
-                isLast ? "" : "pb-12 sm:pb-24"
+                isLast ? "" : "pb-12 sm:pb-29"
               }`}
             >
-              {/* The 460px measure is the prose's, not the cell's. The case
-                  rows below run the full width of the column — they're a list
-                  with a hover field, and a field that stopped 10px short of
-                  where the column ends would read as a mistake rather than as a
-                  measure. Holding the cap here is also what keeps the role and
-                  its summary breaking where the design breaks them. */}
+              {/* 460px is the measure the design gives the prose, and it stays
+                  on an inner div rather than on the cell because the cell has a
+                  second job — its height is the sticky runway (see above) — and
+                  because `pl-3` on a border-box cell would eat 12 of the 460.
+                  What it buys is the role and its summary breaking where the
+                  design breaks them. */}
               <div className="max-w-[28.75rem]">
                 <h3 className="pb-1 leading-[1.575] text-foreground">
                   {job.role} at{" "}
@@ -172,47 +168,6 @@ export function CareerTimeline() {
                   {job.description}
                 </p>
               </div>
-
-              {/* What shipped there. Indented by the row's own padding rather
-                  than pulled flush like the experiments list, so the hover
-                  field reads as belonging to the job above it. It reads at the
-                  role's own 16px now — it used to be a size under it — so
-                  weight is the whole difference: medium against the role's
-                  regular. No year — the period on the rail already dated
-                  everything under it.
-
-                  24px off the description, and the row's own 14px of padding
-                  sits inside that, so the first title lands 38px below the
-                  summary; 12px between the rows themselves. The set has to read
-                  as a group hanging off the entry, which means the space above
-                  it stays wider than the space within it. */}
-              {cases.length > 0 ? (
-                <ul className="mt-6 space-y-3">
-                  {cases.map((project) => (
-                    <li key={project.slug}>
-                      {/* The row is the link; the card the wrapper hangs over
-                          it on hover is the case's own first piece of media,
-                          so the list shows what it's pointing at. */}
-                      <CasePreview item={previewMedia(project)}>
-                        <Link
-                          href={`/${project.slug}`}
-                          className="group flex items-baseline gap-2 rounded-lg px-3 py-3.5 text-base font-medium leading-snug transition-colors duration-150 hover:bg-hover focus-visible:bg-hover focus-visible:outline-none"
-                        >
-                          <span className="text-foreground transition-transform duration-200 ease-out-strong group-hover:translate-x-0.5">
-                            {project.title}
-                          </span>
-                          <span
-                            aria-hidden="true"
-                            className="-translate-x-1 shrink-0 text-muted opacity-0 transition duration-200 ease-out-strong group-hover:translate-x-0 group-hover:opacity-100"
-                          >
-                            ↗
-                          </span>
-                        </Link>
-                      </CasePreview>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
             </div>
           </li>
         );

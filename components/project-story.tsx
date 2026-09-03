@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import { MediaFigure } from "@/components/project-media";
+import { EdgeArrow, STORY_DIAGRAMS } from "@/components/story-diagrams";
 import { sectionId, type FlowRow, type Metric, type Signal, type StoryBlock } from "@/lib/projects";
 
 /** The reading column — 624px in the design. Figures run to the full 1024. */
@@ -31,14 +32,21 @@ function gapAbove(block: StoryBlock, prev?: StoryBlock): string {
   // after one of them sat closer than the section after the other.
   if (block.kind === "section") return "mt-22";
 
-  // Whatever comes first under an eyebrow belongs to it, structured or not.
-  if (prev.kind === "section") return "mt-3";
+  // Whatever comes first under an eyebrow belongs to it, structured or not —
+  // except a numbered item, which the design sets off the way it sets off the
+  // figure that follows it. Both new Jusbrasil cases open an Iteration section
+  // straight onto 01, with no lead in between, and 12px under the eyebrow read
+  // as a caption on it rather than as the start of a run.
+  if (prev.kind === "section") return block.kind === "step" ? "mt-10" : "mt-3";
 
   switch (block.kind) {
     case "step":
-      return prev.kind === "figure" ? "mt-16" : "mt-10";
+      return prev.kind === "figure" || prev.kind === "diagram"
+        ? "mt-16"
+        : "mt-10";
     case "figure":
     case "flow":
+    case "diagram":
       return "mt-10";
     case "stats":
     case "metrics":
@@ -238,6 +246,27 @@ function Block({
           <Flow rows={block.rows} caption={block.caption} />
         </div>
       );
+
+    /* A figure made of type rather than of pixels, resolved by name — see
+       components/story-diagrams for why these live outside the media registry
+       and don't open into the lightbox. An unknown name renders nothing rather
+       than an empty stage. */
+    case "diagram": {
+      const Diagram = STORY_DIAGRAMS[block.name];
+      if (!Diagram) return null;
+      return (
+        <div className={className}>
+          <figure className="space-y-2.5">
+            <div className="scrollbar-none overflow-x-auto rounded-lg bg-foreground/[0.04]">
+              <Diagram note={block.note} />
+            </div>
+            <figcaption className="mx-auto max-w-xl text-center text-sm font-medium leading-relaxed text-muted">
+              {block.caption}
+            </figcaption>
+          </figure>
+        </div>
+      );
+    }
   }
 }
 
@@ -303,6 +332,27 @@ function SignalRow({ signal }: { signal: Signal }) {
  * split the overflow both ways and put the first chip out of reach. Below `sm`
  * the label moves above its row, so the horizontal room all goes to the chips.
  *
+ * ## The label column, and why it's a grid above `sm`
+ *
+ * The lanes only make their point if the chips start under each other, so the
+ * labels have to share a column — and that column has to be as wide as the
+ * widest label in *this* flow, not a number picked once. "Before" and "After"
+ * want 64px; "Output-based" wants 84 and wrapped to two lines inside 64,
+ * taking the row's height and the alignment with it. So above `sm` the lanes
+ * are one grid and each row goes `display: contents`, which hands its label
+ * and its chain to the grid as items: `minmax(4rem,auto)` then holds the floor
+ * at the 64px the first of these cases was built at and grows only where a
+ * label actually needs it. Below `sm` the wrapper is a flex column again and
+ * the label sits above its row.
+ *
+ * ## Edges
+ *
+ * A step can name the edge that leads to it, and a named edge is drawn rather
+ * than typed: the label needs a connector long enough to sit over, which a `→`
+ * glyph isn't. An unnamed edge keeps the glyph. That isn't two styles for one
+ * thing — it's the difference between a flow that argues about what happens
+ * between two states and one that only puts them in order.
+ *
  * The chip outlines are `foreground/10` rather than `border-border`, which is
  * the token they look like they want. --border is tuned against the page
  * ground; these are drawn on the stage, which is already a step up from it, and
@@ -310,33 +360,52 @@ function SignalRow({ signal }: { signal: Signal }) {
  * with no chips at all.
  */
 function Flow({ rows, caption }: { rows: FlowRow[]; caption: string }) {
+  // Per flow, not per row: one lane that named its edges and one that didn't
+  // would put the same two chips at two different distances apart, and the
+  // columns the figure is read down would stop being columns.
+  const labelled = rows.some((row) => row.steps.some((step) => step.edge));
+
   return (
     <figure className="space-y-2.5">
       <div className="scrollbar-none overflow-x-auto rounded-lg bg-foreground/[0.04]">
         <div className="mx-auto flex w-fit items-center px-6 py-10 sm:h-[357px] sm:px-16 sm:py-14">
-          <div className="flex flex-col items-start gap-10 sm:gap-16">
+          <div className="flex flex-col items-start gap-10 sm:grid sm:grid-cols-[minmax(4rem,auto)_max-content] sm:items-center sm:gap-x-6 sm:gap-y-16">
             {rows.map((row) => (
               <div
                 key={row.label}
-                className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-6"
+                className="flex flex-col items-start gap-2 sm:contents"
               >
-                <span className="text-sm leading-5 text-muted sm:w-16 sm:shrink-0">
-                  {row.label}
-                </span>
-                <div className="flex items-center gap-3">
+                <span className="text-sm leading-5 text-muted">{row.label}</span>
+                {/* A labelled edge is 38px tall by construction — 16 of label,
+                    6 of arrow, 16 of padding under it — which is the chips'
+                    own height, so `items-start` lands the arrow on their
+                    centre line without anything having to be told where that
+                    is. The glyph edges keep the centred row they had. */}
+                <div
+                  className={
+                    labelled ? "flex items-start" : "flex items-center gap-3"
+                  }
+                >
                   {row.steps.map((step, i) => (
                     <Fragment key={`${step.label}-${i}`}>
-                      {i > 0 ? (
+                      {i === 0 ? null : step.edge ? (
+                        <span className="flex flex-col items-center px-2 pb-4">
+                          <span className="whitespace-nowrap text-[11px] leading-4 text-muted">
+                            {step.edge}
+                          </span>
+                          <EdgeArrow />
+                        </span>
+                      ) : (
                         <span
                           aria-hidden="true"
                           className="text-sm leading-5 text-muted"
                         >
                           →
                         </span>
-                      ) : null}
+                      )}
                       <span
                         className={[
-                          "whitespace-nowrap rounded-md px-4 py-[9px] text-sm leading-5",
+                          "flex h-[38px] items-center whitespace-nowrap rounded-md px-4 text-sm leading-5",
                           step.key
                             ? // The one thing that changed, on the site's own
                               // filled-control pair — which is, in the dark

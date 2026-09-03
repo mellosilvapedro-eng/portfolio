@@ -402,7 +402,15 @@ export function MediaZoom({ item }: { item: MediaItem }) {
             alt={item.alt ?? ""}
             loading="lazy"
             decoding="async"
-            className={`max-h-full max-w-full rounded-lg border border-border object-contain ${TILE_SHADOW}`}
+            /* `frame: "own"` floats on the stage like the rest but draws
+               nothing around itself — the picture arrived framed (a window
+               capture on a black desktop), so the hairline would be a second
+               edge on something that has one, and TILE_SHADOW would be a
+               second cast under a window that came with its own. See
+               MediaItem.frame. */
+            className={`max-h-full max-w-full rounded-lg object-contain ${
+              item.frame === "own" ? "" : `border border-border ${TILE_SHADOW}`
+            }`}
           />
         ) : (
           <motion.img
@@ -545,7 +553,19 @@ export function MediaZoom({ item }: { item: MediaItem }) {
                         alt={item.alt ?? ""}
                         decoding="async"
                         className="pointer-events-auto max-h-full max-w-[min(84rem,100%)] cursor-zoom-out rounded-xl object-contain"
-                        style={{ boxShadow: PANEL_SHADOW }}
+                        /* No cast for a capture that brought its own. A
+                           box-shadow is thrown from the element's border box,
+                           and on a `frame: "own"` PNG that box is ~62px out
+                           from the window in transparent margin (see
+                           MediaItem.frame) — so PANEL_SHADOW lands as a ring
+                           with nothing at its edge, and doubles the shadow the
+                           file already carries. Every other screenshot here is
+                           opaque to its own edges and wants the cast. */
+                        style={
+                          item.frame === "own"
+                            ? undefined
+                            : { boxShadow: PANEL_SHADOW }
+                        }
                       />
                     )}
                   </div>

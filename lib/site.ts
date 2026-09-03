@@ -18,11 +18,11 @@ export const site = {
     "This page collects my latest projects and experiments. I see design as a playground to explore my interests, and this is my creative space for that.",
     "I hope you enjoy it as much as I do.",
   ],
-  /** Career history. Drives the home page's Experience & Work timeline, where
-   *  each job also carries the published case studies whose `company` matches
-   *  this `company` — so the string has to stay spelled the same in both files
-   *  (see lib/projects and components/career-timeline).
-   *  `url` turns the company name into a link. */
+  /** Career history. Drives the home page's Experience timeline — one entry per
+   *  job, and nothing else: the case studies used to hang off the matching
+   *  `company` here and now have their own section above it (see
+   *  components/selected-work), so the two files no longer have to agree on how
+   *  a company is spelled. `url` turns the company name into a link. */
   experience: [
     {
       period: "2026 — Now",

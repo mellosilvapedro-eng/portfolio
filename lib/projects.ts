@@ -67,9 +67,28 @@ export type MediaItem = {
    *  simply not play at all. The click that opens the lightbox is the user
    *  gesture that earns the audio. */
   sound?: boolean;
-  /** When true, the image floats on the neutral stage with a rounded border +
-   * shadow (like the video), instead of rendering edge-to-edge. */
-  frame?: boolean;
+  /** How the image meets its stage. Three states, because there are three
+   *  kinds of picture here:
+   *
+   *  - omitted — the image *is* the figure, and runs edge-to-edge in the tile
+   *    with no stage under it.
+   *  - `true` — it floats on the neutral stage with a rounded border and a
+   *    shadow, like the video. For the product screenshots, which are opaque
+   *    and white at their own edges: without the hairline there's nothing for
+   *    the picture to stop at and it bleeds into the light theme's stage.
+   *  - `"own"` — it floats on the stage and the site draws nothing around it,
+   *    because the file already carries an edge. Worth stating precisely, since
+   *    the obvious reading of these two is wrong: the Figma-canvas screenshots
+   *    are window captures saved *with* their drop shadow — palette PNGs with a
+   *    `tRNS` chunk, so the margin is transparent (index 0 is black at alpha 2)
+   *    and holds a real alpha ramp, 2 → 11 → 22 → 37 → 56 → 76 → 105 → 132 →
+   *    192 → 255. The window itself occupies x 62–1985, y 42–1165 of 2048×1248.
+   *    So a border here didn't outline anything: it traced the file's box, 62px
+   *    out in empty margin, which is exactly why it read as a stray line. And
+   *    TILE_SHADOW was a second cast under a picture that brought its own.
+   *    (components/case-preview makes the same call for the same reason —
+   *    "full-bleed art carries its own edge".) */
+  frame?: boolean | "own";
 };
 
 /** A direction and a reading, for the comparison block. */
@@ -84,8 +103,13 @@ export type Signal = {
 /** One row of the operating-model diagram: a label and the chips it leads. */
 export type FlowRow = {
   label: string;
-  /** `key` marks the chip the design fills — the one thing that changed. */
-  steps: { label: string; key?: boolean }[];
+  /** `key` marks the chip the design fills — the one thing that changed.
+   *
+   *  `edge` names what happens on the way *in* to this chip ("blocked", "pays
+   *  on evidence"), and is ignored on the first step, which nothing leads to.
+   *  Naming one edge changes how the whole flow draws its connectors — see the
+   *  note on Flow in components/project-story. */
+  steps: { label: string; key?: boolean; edge?: string }[];
   /** The row the diagram argues for. Outlined chips for the model being left
    *  behind, filled ones for the model replacing it. */
   active?: boolean;
@@ -132,7 +156,16 @@ export type StoryBlock =
   /** A figure at the gallery's width — the site's own media tile and caption. */
   | { kind: "figure"; media: MediaItem }
   /** The case's one diagram: the operating model, before and after. */
-  | { kind: "flow"; rows: FlowRow[]; caption: string };
+  | { kind: "flow"; rows: FlowRow[]; caption: string }
+  /** A bespoke diagram, resolved by name against components/story-diagrams.
+   *
+   *  For a figure that's made of type rather than of pixels and is too
+   *  particular to have a shape worth generalising — a raster of tracked
+   *  events, a map of candidate triggers. The geometry and the labels live with
+   *  the component, because they're bound to each other; the caption and the
+   *  small print under the stage live here, because they're prose, and prose
+   *  belongs with the case. */
+  | { kind: "diagram"; name: string; caption: string; note?: string };
 
 export type Project = {
   slug: string;
@@ -165,7 +198,14 @@ export type Project = {
   preview?: MediaItem;
   /** The case page, told as blocks. Replaces the fixed sections when present. */
   story?: StoryBlock[];
-  /** Set to false for projects that are still drafts. */
+  /** Whether the case is part of the site. `false` keeps it out of home's
+   *  Selected work, out of the agent's knowledge, and out of the suggestion
+   *  chips — everything that reads `publishedProjects`. It does NOT unpublish
+   *  the case *page*: `/[slug]` is generated from every entry here, so the URL
+   *  stays reachable for anyone holding a link.
+   *
+   *  Two things use it: a case that isn't written yet, and one that's finished
+   *  but deliberately off the shortlist. */
   published: boolean;
 };
 
@@ -531,39 +571,211 @@ export const projects: Project[] = [
     ],
     results: [
       { value: "+40%", label: "ARPU growth" },
-      { value: "5,000+", label: "new subscriptions post-launch" },
-      { value: "20,000", label: "monthly active subscribers in 4 months" },
+      { value: "+5,000", label: "new subscriptions in the first weeks" },
+      { value: "+20k", label: "monthly active subscribers after four months" },
     ],
-    media: [
+    /* The case leads on the product itself rather than on its first diagram:
+       the clip is what the paywall *is*, and the two figures before it in the
+       story only make sense once you've read the copy between them. */
+    preview: {
+      type: "video",
+      src: "/projects/monetization-jusia/video-example-1.mp4",
+      aspect: "2164 / 1080",
+      alt: "Jus AI answering a legal due-diligence prompt.",
+    },
+    story: [
+      { kind: "section", title: "The problem" },
       {
-        type: "video",
-        src: "/projects/monetization-jusia/video-example-1.mp4",
-        aspect: "2164 / 1080",
-        alt: "Jus AI product walkthrough.",
-        caption: "Jus AI answering a legal due-diligence prompt.",
+        kind: "text",
+        text: "Jusbrasil launched a new AI product to establish itself as an AI-first company in the Brazilian legal market.",
       },
       {
-        type: "image",
-        src: "/projects/monetization-jusia/response-limit-paywall.png",
-        frame: true,
-        aspect: "1512 / 875",
-        alt: "The Jus IA chat with a due-diligence answer on screen and an inline card below it reading 'Você chegou no limite de respostas', with an 'Assinar agora' button.",
+        kind: "lead",
+        text: "The challenge was to find a way to monetize AI without breaking user trust or interrupting the value users were getting from it.",
+      },
+
+      { kind: "section", title: "The signal" },
+      {
+        kind: "lead",
+        text: "AI created value differently from our subscription, so I analyzed beta testers' behavior and sessions to find where the new AI product added real value.",
+      },
+      {
+        kind: "steps",
+        items: [
+          {
+            title: "Legal drafting",
+            text: "Users experienced value immediately after generating a useful legal draft.",
+          },
+          {
+            title: "Legal research",
+            text: "Completing a research task was another strong moment of perceived value.",
+          },
+        ],
+      },
+      {
+        kind: "diagram",
+        name: "session-raster",
+        note: "Illustrative — each row is one beta session, each mark one tracked event.",
         caption:
-          "The trigger in context — the response limit lands under a finished answer, not before it.",
+          "Behavioural data and session recordings from beta testers: the value moment landed after the output — in drafting and in research.",
+      },
+
+      { kind: "section", title: "The opportunity" },
+      {
+        kind: "lead",
+        text: "We could monetize the moment users understood the value.",
       },
       {
-        type: "component",
-        component: "jusia-paywall",
-        caption: "The output-based paywall, shown right after the AI delivers value.",
+        kind: "text",
+        text: "Instead of placing AI behind a generic paywall, we explored a contextual model and set usage limits based on how the beta testers behaved.",
       },
       {
-        type: "image",
-        src: "/projects/monetization-jusia/plans-repackaging.png",
-        frame: true,
-        aspect: "1512 / 875",
-        alt: "Jusbrasil's plans page after the repackaging: Essencial, Profissional, and a recommended Premium tier, each including Jus IA, with a monthly/annual toggle.",
+        kind: "flow",
+        rows: [
+          {
+            label: "Generic",
+            steps: [
+              { label: "User asks" },
+              { label: "Paywall", edge: "blocked" },
+              { label: "AI answers", edge: "pays on a promise" },
+            ],
+          },
+          {
+            label: "Output-based",
+            active: true,
+            steps: [
+              { label: "User asks" },
+              { label: "AI answers + limit usage", edge: "generates" },
+              { label: "Paywall", key: true, edge: "pays on evidence" },
+            ],
+          },
+        ],
         caption:
-          "The plan repackaging — three tiers built around the AI, with Premium set as the recommended plan to lift ARPU.",
+          "Instead of charging before delivering value, we moved the paywall to the moment users had already experienced the AI's value.",
+      },
+
+      { kind: "section", title: "Exploration" },
+      {
+        kind: "lead",
+        text: "I explored how AI products connect value with monetization.",
+      },
+      {
+        kind: "step",
+        n: "01",
+        title: "Benchmarking research",
+        text: "I benchmarked Notion AI, Grammarly, Claude and ChatGPT to understand how they positioned upgrades around AI usage.",
+      },
+      {
+        kind: "figure",
+        media: {
+          type: "image",
+          src: "/projects/monetization-jusia/benchmark-figma.png",
+          frame: "own",
+          aspect: "2048 / 1248",
+          stage: "1024 / 534",
+          alt: "The benchmark board in Figma: four labelled groups of product screenshots — Notion AI, Grammarly, Claude and Chat.gpt — each a captured upgrade flow wired together with red connectors from the first prompt through to the plans page.",
+          caption:
+            "The benchmark study was inside Figma, featuring screenshots and buying workflows.",
+        },
+      },
+      {
+        kind: "step",
+        n: "02",
+        title: "Buying journey flows",
+        text: "I then mapped possible buying journeys to explore different upgrade moments and align the strategy with stakeholders.",
+      },
+      {
+        kind: "diagram",
+        name: "buying-journeys",
+        note: "Dashed — left on the table. Solid — the one taken forward.",
+        caption:
+          "Four candidate triggers, one purchase path — the buying journeys mapped side by side to compare upgrade moments with stakeholders.",
+      },
+
+      { kind: "section", title: "The decision" },
+      {
+        kind: "lead",
+        text: "We chose the output-based trigger in a joint internal decision.",
+      },
+      {
+        kind: "text",
+        text: "The trade-off was to absorb the cost of generating the AI output upfront, in exchange for a more contextual upgrade moment tied to the value users had just experienced.",
+      },
+
+      { kind: "section", title: "Iteration" },
+      {
+        kind: "lead",
+        text: "I kept the trigger contextual — and adapted the experience around it.",
+      },
+      {
+        kind: "step",
+        n: "01",
+        title: "Output-based paywalls",
+        text: "The upgrade appeared immediately after a high-value AI result.",
+      },
+      {
+        kind: "figure",
+        media: {
+          type: "video",
+          src: "/projects/monetization-jusia/video-example-1.mp4",
+          aspect: "2164 / 1080",
+          stage: "1024 / 534",
+          alt: "Jus AI answering a legal due-diligence prompt, then reaching the response limit.",
+          caption: "Triggering the paywall after the usage limit is reached.",
+        },
+      },
+      {
+        kind: "figure",
+        media: {
+          type: "image",
+          src: "/projects/monetization-jusia/response-limit-paywall.png",
+          frame: true,
+          aspect: "1512 / 875",
+          stage: "1024 / 534",
+          alt: "The Jus IA chat with a due-diligence answer on screen and an inline card below it reading 'Você chegou no limite de respostas', with an 'Assinar agora' button.",
+          caption: "The trigger paywall in context.",
+        },
+      },
+      {
+        kind: "step",
+        n: "02",
+        title: "Payment modal",
+        text: "I designed the payment modal to adapt to different use cases, tailoring the experience for trial, upgrade, and winback scenarios.",
+      },
+      {
+        kind: "figure",
+        media: {
+          type: "component",
+          component: "jusia-paywall",
+          caption:
+            "The payment modal was redesigned to fit new benefits and new tier plans.",
+        },
+      },
+      {
+        kind: "step",
+        n: "03",
+        title: "A new pricing structure",
+        text: "We repositioned Jus AI as a premium feature within the existing subscription tiers, making the model clearer and more scalable.",
+      },
+      {
+        kind: "figure",
+        media: {
+          type: "image",
+          src: "/projects/monetization-jusia/plans-repackaging.png",
+          frame: true,
+          aspect: "1512 / 875",
+          stage: "1024 / 534",
+          alt: "Jusbrasil's plans page after the repackaging: Essencial, Profissional, and a recommended Premium tier, each including Jus IA, with a monthly/annual toggle.",
+          caption:
+            "The plan repackaging — three tiers built around the AI, with Premium set as the recommended plan to lift ARPU.",
+        },
+      },
+
+      { kind: "section", title: "Results" },
+      { kind: "metrics" },
+      {
+        kind: "text",
+        text: "The strategy turned a new AI capability into a meaningful revenue driver while keeping monetization connected to the value users experienced.",
       },
     ],
     published: true,
@@ -576,7 +788,7 @@ export const projects: Project[] = [
     company: "Jusbrasil",
     year: "2025",
     role: "Product Designer",
-    status: "Experiment",
+    status: "Shipped",
     url: "https://www.jusbrasil.com.br",
     team: "Product Managers, Engineers, Business Strategists",
     summary: "Curbing account sharing without punishing legitimate users.",
@@ -602,24 +814,181 @@ export const projects: Project[] = [
       },
     ],
     results: [
-      { value: "+20%", label: "revenue increase" },
+      { value: "+20%", label: "revenue from seat expansion" },
       { value: "+50%", label: "shared accounts blocked" },
     ],
-    media: [
+    /* The screen the case turns on: the limit reached, and a choice rather
+       than a wall. */
+    preview: { type: "component", component: "device-control" },
+    story: [
+      { kind: "section", title: "The problem" },
       {
-        type: "component",
-        component: "device-control",
-        caption: "Hitting the access limit — the user picks a device to disconnect.",
+        kind: "text",
+        text: "Jusbrasil had become one of the most widely used B2C products among lawyers in Brazil. As usage scaled, we started seeing discrepancies between product usage and our subscriber base.",
       },
       {
-        type: "component",
-        component: "code-verification",
-        caption: "A six-digit code confirms each new device.",
+        kind: "lead",
+        text: "We had a strong signal that accounts were being shared.",
+      },
+
+      { kind: "section", title: "The signal" },
+      {
+        kind: "lead",
+        text: "I paired behavioral data with interviews to find out what multi-device use actually was.",
       },
       {
-        type: "component",
-        component: "device-lastswitch",
-        caption: "The last-switch warning, framed to convert rather than punish.",
+        kind: "steps",
+        items: [
+          {
+            title: "Multiple devices didn't mean account sharing",
+            text: "Legitimate customers regularly switched between work and personal devices.",
+          },
+          {
+            title: "Sharing was often about convenience",
+            text: "A password was simply the easiest way to give someone access.",
+          },
+          {
+            title: "A hard block would create unnecessary friction",
+            text: "Controlling access is not the same as preventing it.",
+          },
+          {
+            title: "Multi-device usage was the norm",
+            text: "80%+ of paying users accessed Jusbrasil from multiple devices.",
+          },
+        ],
+      },
+
+      { kind: "section", title: "The opportunity" },
+      {
+        kind: "lead",
+        text: "Turn access control into a path to legitimate usage and subscriber growth.",
+      },
+      {
+        kind: "text",
+        text: "Rather than treat every extra device as abuse, add friction gradually and leave a way out. The goal wasn't to stop sharing — it was to convert it.",
+      },
+      {
+        kind: "flow",
+        rows: [
+          {
+            label: "Before",
+            steps: [{ label: "New device" }, { label: "Blocked", edge: "at once" }],
+          },
+          {
+            label: "After",
+            active: true,
+            steps: [
+              { label: "New device" },
+              { label: "Identify", edge: "detected" },
+              { label: "Warn", edge: "approaching" },
+              { label: "Limit", edge: "reached" },
+              { label: "Resolve", key: true, edge: "$ buy access" },
+            ],
+          },
+        ],
+        caption:
+          "The shift: one block at the door becomes a sequence the customer can see coming.",
+      },
+
+      { kind: "section", title: "Exploration" },
+      {
+        kind: "lead",
+        text: "I explored how to introduce friction without breaking the experience.",
+      },
+      {
+        kind: "text",
+        text: "I designed and tested different approaches to device limits, warnings, verification and additional access.",
+      },
+      {
+        kind: "figure",
+        media: {
+          type: "image",
+          src: "/projects/device-control/friction-ramp.png",
+          frame: "own",
+          aspect: "2048 / 1248",
+          stage: "1024 / 534",
+          alt: "The device-control file in Figma: pages for the disconnect flow and the seats upgrade vision beside a canvas of labelled flows — authentication, desktop, and new subscription — each a run of screens wired together with connectors.",
+          caption:
+            "All the flows were designed based on previous learnings, and the best decisions were made after design critiques with peers.",
+        },
+      },
+
+      { kind: "section", title: "The trade-off" },
+      {
+        kind: "lead",
+        text: "How much friction can we introduce before legitimate users start feeling punished?",
+      },
+      {
+        kind: "text",
+        text: "Based on everything we knew at this point, we made a decision. Instead of outright blocking additional devices, we introduced warnings and limits gradually, giving legitimate users a clear path to continue.",
+      },
+
+      { kind: "section", title: "What we learned" },
+      {
+        kind: "lead",
+        text: "The restriction worked better when customers understood why.",
+      },
+      {
+        kind: "text",
+        text: "Testing showed that users needed clear context before being blocked — and a clear path to resolve the restriction.",
+      },
+
+      { kind: "section", title: "Iteration" },
+      {
+        kind: "step",
+        n: "01",
+        title: "Progressive warnings",
+        text: "Customers received increasingly clear warnings before reaching the device limit. I wrote every piece of copy with our compliance team, so the blocking system explained itself.",
+      },
+      {
+        kind: "figure",
+        media: {
+          type: "component",
+          component: "device-control",
+          caption:
+            "All design screens are based on product modals that appear mid-flow, keeping users focused within the context of use.",
+        },
+      },
+      {
+        kind: "step",
+        n: "02",
+        title: "Verification",
+        text: "A verification step helped distinguish legitimate access from unauthorized sharing. The verification flow was designed to be straightforward and assist users in making their decisions.",
+      },
+      {
+        kind: "figure",
+        media: {
+          type: "component",
+          component: "device-lastswitch",
+          caption:
+            "The last-switch warning, framed to convert rather than punish — and what acknowledging it opens onto.",
+        },
+      },
+      {
+        kind: "step",
+        n: "03",
+        title: "Self-service access",
+        text: "Customers can purchase additional access instead of being permanently blocked, allowing us to increase growth opportunities and protect our revenue.",
+      },
+      {
+        kind: "figure",
+        media: {
+          type: "component",
+          component: "seat-purchase",
+          caption:
+            "At the limit — disconnect a device, or buy the access to keep both.",
+        },
+      },
+
+      { kind: "section", title: "Results" },
+      {
+        kind: "lead",
+        text: "Control without turning the experience hostile.",
+      },
+      { kind: "metrics" },
+      {
+        kind: "text",
+        text: "Unmanaged sharing went down, and part of it turned into revenue.",
       },
     ],
     published: true,
@@ -692,7 +1061,7 @@ export const projects: Project[] = [
       { value: "−40%", label: "time-to-first-booking" },
       { value: "−35%", label: "onboarding drop-off" },
     ],
-    published: true,
+    published: false,
   },
 ];
 
